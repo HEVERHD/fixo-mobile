@@ -1,12 +1,18 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
-  View, Text, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
+  View, Text, TouchableOpacity, Image, ActivityIndicator, Alert,
+  type TextInputInstance,
 } from 'react-native'
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
+import { StatusBar } from 'expo-status-bar'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import Constants from 'expo-constants'
+import { Mail, LockKeyhole, ArrowRight } from 'lucide-react-native'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { supabase } from '@/lib/supabase'
+import { TextField } from '@/components/TextField'
 
 const schema = z.object({
   email: z.string().email('Email inválido'),
@@ -16,6 +22,8 @@ type FormData = z.infer<typeof schema>
 
 export default function LoginScreen() {
   const [loading, setLoading] = useState(false)
+  const insets = useSafeAreaInsets()
+  const passwordRef = useRef<TextInputInstance>(null)
 
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -34,85 +42,128 @@ export default function LoginScreen() {
     // On success, _layout.tsx detects the session change and navigates automatically
   }
 
+  const submit = () => handleSubmit(onSubmit)()
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-white"
-    >
-      <View className="flex-1 justify-center px-8">
-        {/* Logo */}
-        <View className="items-center mb-10">
-          <View className="w-16 h-16 rounded-full bg-primary items-center justify-center mb-4">
-            <Text className="text-white text-2xl font-bold">⚡</Text>
-          </View>
-          <Text className="text-3xl font-bold text-gray-900">Fixo</Text>
-          <Text className="text-sm text-gray-500 mt-1 text-center">
-            Gestión de Servicios Electromecánicos
+    <View className="flex-1 bg-navy">
+      <StatusBar style="light" />
+
+      {/* Decorative brand shapes */}
+      <View pointerEvents="none" className="absolute inset-0 overflow-hidden">
+        <View className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-primary opacity-25" />
+        <View className="absolute top-40 -left-20 w-48 h-48 rounded-full bg-accent opacity-10" />
+        <View className="absolute top-16 left-10 w-3 h-3 rounded-full bg-highlight opacity-80" />
+      </View>
+
+      {/* Scrolls the focused field (plus the submit button below it) above the keyboard */}
+      <KeyboardAwareScrollView
+        bottomOffset={96}
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Brand header */}
+        <View
+          className="flex-1 items-center justify-end px-6 pb-10"
+          style={{ paddingTop: insets.top + 32 }}
+        >
+          <Image
+            source={require('@/assets/splash-icon.png')}
+            className="w-20 h-20 mb-5"
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+          />
+          <Text className="text-4xl font-extrabold tracking-tight text-white">Fixo</Text>
+          <Text className="text-sm text-blue-200 mt-2 text-center">
+            Gestión de servicios de campo
           </Text>
         </View>
 
-        {/* Form */}
-        <View className="space-y-4">
-          <View>
-            <Text className="text-sm font-medium text-gray-700 mb-1">
-              Correo electrónico
-            </Text>
+        {/* Form sheet */}
+        <View
+          className="bg-white rounded-t-[32px] px-6 pt-8"
+          style={{ paddingBottom: insets.bottom + 24 }}
+        >
+          <Text className="text-2xl font-bold text-gray-900">Bienvenido</Text>
+          <Text className="text-sm text-gray-500 mt-1 mb-7">
+            Ingresa con tu cuenta para continuar.
+          </Text>
+
+          <View className="gap-5">
             <Controller
               control={control}
               name="email"
-              render={({ field: { onChange, value } }) => (
-                <TextInput
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base text-gray-900 bg-gray-50"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextField
+                  label="Correo electrónico"
+                  icon={Mail}
                   placeholder="usuario@empresa.com"
-                  placeholderTextColor="#9ca3af"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  autoComplete="email"
+                  textContentType="emailAddress"
+                  returnKeyType="next"
+                  submitBehavior="submit"
+                  onSubmitEditing={() => passwordRef.current?.focus()}
                   value={value}
                   onChangeText={onChange}
+                  onBlur={onBlur}
+                  error={errors.email?.message}
                 />
               )}
             />
-            {errors.email && (
-              <Text className="text-red-500 text-xs mt-1">{errors.email.message}</Text>
-            )}
-          </View>
 
-          <View>
-            <Text className="text-sm font-medium text-gray-700 mb-1">
-              Contraseña
-            </Text>
             <Controller
               control={control}
               name="password"
-              render={({ field: { onChange, value } }) => (
-                <TextInput
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base text-gray-900 bg-gray-50"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextField
+                  ref={passwordRef}
+                  label="Contraseña"
+                  icon={LockKeyhole}
                   placeholder="••••••••"
-                  placeholderTextColor="#9ca3af"
-                  secureTextEntry
+                  secure
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="current-password"
+                  textContentType="password"
+                  returnKeyType="go"
+                  onSubmitEditing={submit}
                   value={value}
                   onChangeText={onChange}
+                  onBlur={onBlur}
+                  error={errors.password?.message}
                 />
               )}
             />
-            {errors.password && (
-              <Text className="text-red-500 text-xs mt-1">{errors.password.message}</Text>
-            )}
           </View>
 
           <TouchableOpacity
-            className="bg-primary rounded-xl py-4 items-center mt-2"
-            onPress={handleSubmit(onSubmit)}
+            className={`h-14 rounded-2xl bg-primary flex-row items-center justify-center mt-8 ${loading ? 'opacity-70' : ''}`}
+            onPress={submit}
             disabled={loading}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityState={{ busy: loading, disabled: loading }}
           >
             {loading
               ? <ActivityIndicator color="#fff" />
-              : <Text className="text-white font-semibold text-base">Ingresar</Text>
+              : (
+                <>
+                  <Text className="text-white font-semibold text-base mr-2">Ingresar</Text>
+                  <ArrowRight size={18} color="#fff" strokeWidth={2.2} />
+                </>
+              )
             }
           </TouchableOpacity>
+
+          <Text className="text-xs text-gray-400 text-center mt-8">
+            Fixo v{Constants.expoConfig?.version ?? '1.0.0'}
+          </Text>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   )
 }

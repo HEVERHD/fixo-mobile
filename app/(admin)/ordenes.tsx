@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native'
+import { colors } from '@/lib/theme'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '@/lib/supabase'
+import { ClipboardList, Building2, CalendarDays } from 'lucide-react-native'
+import { EmptyState, MetaRow } from '@/components/ui'
 
 const STATUS_COLOR: Record<string, string> = {
   pendiente: 'bg-yellow-100 text-yellow-800',
@@ -38,7 +41,7 @@ export default function OrdenesAdmin() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50">
-        <ActivityIndicator size="large" color="#1e40af" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     )
   }
@@ -53,10 +56,11 @@ export default function OrdenesAdmin() {
         <Text className="text-2xl font-bold text-gray-900 mb-4">Órdenes de Trabajo</Text>
 
         {orders.length === 0 ? (
-          <View className="bg-white rounded-2xl p-8 items-center">
-            <Text className="text-4xl mb-2">📋</Text>
-            <Text className="text-gray-500">No hay órdenes registradas</Text>
-          </View>
+          <EmptyState
+            icon={ClipboardList}
+            title="No hay órdenes registradas"
+            message="Cuando un cliente solicite un servicio o crees una orden, aparecerá aquí."
+          />
         ) : (
           orders.map((order) => (
             <View key={order.id} className="bg-white rounded-2xl p-4 mb-3 shadow-sm">
@@ -79,10 +83,10 @@ export default function OrdenesAdmin() {
                 {order.description}
               </Text>
               {order.clients && (
-                <Text className="text-gray-400 text-xs">{order.clients.company_name}</Text>
+                <MetaRow icon={Building2}>{order.clients.company_name}</MetaRow>
               )}
               {order.scheduled_date && (
-                <Text className="text-gray-400 text-xs mt-1">📅 {order.scheduled_date}</Text>
+                <MetaRow icon={CalendarDays}>{order.scheduled_date}</MetaRow>
               )}
             </View>
           ))

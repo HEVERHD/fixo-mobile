@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { View, Text, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity, Alert } from 'react-native'
+import { colors } from '@/lib/theme'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '@/lib/supabase'
+import { CircleCheckBig, Building2, CalendarDays, Play } from 'lucide-react-native'
+import { EmptyState, MetaRow } from '@/components/ui'
 
 const STATUS_COLOR: Record<string, string> = {
   pendiente: 'text-yellow-700',
@@ -55,7 +58,7 @@ export default function OperarioOrders() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50">
-        <ActivityIndicator size="large" color="#1e40af" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     )
   }
@@ -70,10 +73,11 @@ export default function OperarioOrders() {
         <Text className="text-2xl font-bold text-gray-900 mb-4">Mis Órdenes</Text>
 
         {orders.length === 0 ? (
-          <View className="bg-white rounded-2xl p-8 items-center">
-            <Text className="text-4xl mb-2">✅</Text>
-            <Text className="text-gray-500">No tienes órdenes asignadas</Text>
-          </View>
+          <EmptyState
+            icon={CircleCheckBig}
+            title="No tienes órdenes asignadas"
+            message="Cuando te asignen un trabajo lo verás aquí."
+          />
         ) : (
           orders.map((order) => (
             <View key={order.id} className="bg-white rounded-2xl p-4 mb-3 shadow-sm">
@@ -85,17 +89,18 @@ export default function OperarioOrders() {
               </View>
               <Text className="text-gray-700 text-sm mb-2" numberOfLines={2}>{order.description}</Text>
               {order.clients && (
-                <Text className="text-gray-400 text-xs mb-1">🏢 {order.clients.company_name}</Text>
+                <MetaRow icon={Building2}>{order.clients.company_name}</MetaRow>
               )}
               {order.scheduled_date && (
-                <Text className="text-gray-400 text-xs mb-3">📅 {order.scheduled_date}</Text>
+                <MetaRow icon={CalendarDays}>{order.scheduled_date}</MetaRow>
               )}
               {order.status === 'pendiente' && (
                 <TouchableOpacity
-                  className="bg-primary rounded-xl py-2 items-center"
+                  className="bg-primary rounded-xl h-11 mt-3 flex-row items-center justify-center"
                   onPress={() => markInProgress(order.id)}
                 >
-                  <Text className="text-white text-sm font-medium">Iniciar orden</Text>
+                  <Play size={16} color="#fff" fill="#fff" />
+                  <Text className="text-white text-sm font-semibold ml-2">Iniciar orden</Text>
                 </TouchableOpacity>
               )}
             </View>

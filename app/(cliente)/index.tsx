@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { View, Text, ScrollView, ActivityIndicator, RefreshControl } from 'react-native'
+import { colors } from '@/lib/theme'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '@/lib/supabase'
+import { Package, MapPin, CalendarCheck } from 'lucide-react-native'
+import { EmptyState, MetaRow } from '@/components/ui'
 
 export default function ClienteActivos() {
   const [assets, setAssets] = useState<any[]>([])
@@ -42,7 +45,7 @@ export default function ClienteActivos() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50">
-        <ActivityIndicator size="large" color="#1e40af" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     )
   }
@@ -57,10 +60,11 @@ export default function ClienteActivos() {
         <Text className="text-2xl font-bold text-gray-900 mb-4">Mis Activos</Text>
 
         {assets.length === 0 ? (
-          <View className="bg-white rounded-2xl p-8 items-center">
-            <Text className="text-4xl mb-2">⚙️</Text>
-            <Text className="text-gray-500">No tienes activos registrados</Text>
-          </View>
+          <EmptyState
+            icon={Package}
+            title="No tienes activos registrados"
+            message="Tus equipos aparecerán aquí una vez el contratista los registre."
+          />
         ) : (
           assets.map((asset) => {
             const s = STATUS[asset.status] ?? { bg: 'bg-gray-100', text: 'text-gray-700', label: asset.status }
@@ -75,9 +79,9 @@ export default function ClienteActivos() {
                 <Text className="text-gray-500 text-sm">
                   {asset.type}{asset.brand ? ` · ${asset.brand}` : ''}{asset.model ? ` ${asset.model}` : ''}
                 </Text>
-                {asset.location && <Text className="text-gray-400 text-xs mt-1">📍 {asset.location}</Text>}
+                {asset.location && <MetaRow icon={MapPin}>{asset.location}</MetaRow>}
                 {asset.installation_date && (
-                  <Text className="text-gray-400 text-xs">🗓 Instalado: {asset.installation_date}</Text>
+                  <MetaRow icon={CalendarCheck}>Instalado: {asset.installation_date}</MetaRow>
                 )}
               </View>
             )

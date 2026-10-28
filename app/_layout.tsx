@@ -2,6 +2,7 @@ import '../global.css'
 import { useEffect, useState } from 'react'
 import { Stack, router } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
+import { KeyboardProvider } from 'react-native-keyboard-controller'
 import { supabase, type Role } from '@/lib/supabase'
 import type { Session } from '@supabase/supabase-js'
 
@@ -51,9 +52,9 @@ export default function RootLayout() {
   }, [session, role, loading])
 
   return (
-    <>
+    <KeyboardProvider>
       <StatusBar style="auto" />
       <Stack screenOptions={{ headerShown: false }} />
-    </>
+    </KeyboardProvider>
   )
 }

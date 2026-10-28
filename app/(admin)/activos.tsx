@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { View, Text, ScrollView, ActivityIndicator, RefreshControl } from 'react-native'
+import { colors } from '@/lib/theme'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '@/lib/supabase'
+import { Package, Building2, MapPin } from 'lucide-react-native'
+import { EmptyState, MetaRow } from '@/components/ui'
 
 const STATUS_COLOR: Record<string, { bg: string; text: string }> = {
   activo: { bg: 'bg-green-100', text: 'text-green-800' },
@@ -29,7 +32,7 @@ export default function ActivosAdmin() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50">
-        <ActivityIndicator size="large" color="#1e40af" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     )
   }
@@ -44,10 +47,11 @@ export default function ActivosAdmin() {
         <Text className="text-2xl font-bold text-gray-900 mb-4">Activos / QR</Text>
 
         {assets.length === 0 ? (
-          <View className="bg-white rounded-2xl p-8 items-center">
-            <Text className="text-4xl mb-2">⚙️</Text>
-            <Text className="text-gray-500">No hay activos registrados</Text>
-          </View>
+          <EmptyState
+            icon={Package}
+            title="No hay activos registrados"
+            message="Los equipos que registres aparecerán aquí con su código QR."
+          />
         ) : (
           assets.map((asset) => {
             const color = STATUS_COLOR[asset.status] ?? { bg: 'bg-gray-100', text: 'text-gray-800' }
@@ -63,10 +67,10 @@ export default function ActivosAdmin() {
                 </View>
                 <Text className="text-gray-500 text-sm">{asset.type}{asset.brand ? ` · ${asset.brand}` : ''}{asset.model ? ` ${asset.model}` : ''}</Text>
                 {asset.clients && (
-                  <Text className="text-gray-400 text-xs mt-1">🏢 {asset.clients.company_name}</Text>
+                  <MetaRow icon={Building2}>{asset.clients.company_name}</MetaRow>
                 )}
                 {asset.location && (
-                  <Text className="text-gray-400 text-xs">📍 {asset.location}</Text>
+                  <MetaRow icon={MapPin}>{asset.location}</MetaRow>
                 )}
               </View>
             )
