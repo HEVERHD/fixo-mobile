@@ -103,7 +103,7 @@ export default function LoginScreen() {
 
           <TouchableOpacity
             className="bg-primary rounded-xl py-4 items-center mt-2"
-            onPress={handleSubmit(onSubmit)}
+            onPress={() => handleSubmit(onSubmit)()}
             disabled={loading}
           >
             {loading
