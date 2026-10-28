@@ -1,13 +1,15 @@
 import { useCallback, useMemo, useState } from 'react'
-import { View, Text, FlatList, TextInput, ActivityIndicator, RefreshControl } from 'react-native'
+import { View, Text, FlatList, TextInput, ActivityIndicator, RefreshControl, TouchableOpacity, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { useFocusEffect } from 'expo-router'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Search, Mail, CalendarDays, Building2 } from 'lucide-react-native'
+import { Search, Mail, CalendarDays, Building2, Trash2 } from 'lucide-react-native'
 import { colors } from '@/lib/theme'
-import { fetchPlatformOrganizations, type PlatformOrganization } from '@/lib/platform'
+import { fetchPlatformOrganizations, deleteOrganization, type PlatformOrganization } from '@/lib/platform'
+import { DeleteOrganizationModal } from '@/components/DeleteOrganizationModal'
+import { BUSINESS_TYPES } from '@/lib/organization'
 import { OrgAvatar } from '@/components/OrgAvatar'
 import { EmptyState, MetaRow } from '@/components/ui'
 
@@ -15,11 +17,28 @@ export default function PlatformOrganizations() {
   const [orgs, setOrgs] = useState<PlatformOrganization[] | null>(null)
   const [query, setQuery] = useState('')
   const [refreshing, setRefreshing] = useState(false)
+  const [toDelete, setToDelete] = useState<PlatformOrganization | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const load = useCallback(async () => {
     setOrgs(await fetchPlatformOrganizations())
     setRefreshing(false)
   }, [])
+
+  async function confirmDelete(confirmName: string) {
+    if (!toDelete) return
+    setDeleting(true)
+    const result = await deleteOrganization(toDelete.id, confirmName)
+    setDeleting(false)
+    if (!result.ok) {
+      Alert.alert('No se eliminó', result.message)
+      return
+    }
+    const name = toDelete.name
+    setToDelete(null)
+    await load()
+    Alert.alert('Empresa eliminada', `${name} y todos sus datos fueron eliminados.`)
+  }
 
   useFocusEffect(useCallback(() => { load() }, [load]))
 
@@ -87,6 +106,11 @@ export default function PlatformOrganizations() {
                   <Text className="font-semibold text-gray-900 text-base" numberOfLines={1}>{o.name}</Text>
                   <Text className="text-sm text-gray-500" numberOfLines={1}>{o.admin_name ?? 'Sin administrador'}</Text>
                 </View>
+                {o.business_type && (
+                  <View className="bg-gray-100 rounded-full px-2.5 py-1 ml-2">
+                    <Text className="text-xs font-medium text-gray-700">{BUSINESS_TYPES[o.business_type].label}</Text>
+                  </View>
+                )}
               </View>
               {o.admin_email && <MetaRow icon={Mail} className="mt-3">{o.admin_email}</MetaRow>}
               <MetaRow icon={CalendarDays}>
@@ -95,13 +119,30 @@ export default function PlatformOrganizations() {
               <View className="flex-row gap-2 mt-3">
                 <Chip label="Usuarios" value={o.users} />
                 <Chip label="Clientes" value={o.clients} />
-                <Chip label="Activos" value={o.assets} />
+                <Chip label="Equipos" value={o.assets} />
+                <Chip label="Obras" value={o.projects ?? 0} />
                 <Chip label="Órdenes" value={o.work_orders} />
               </View>
+              <TouchableOpacity
+                onPress={() => setToDelete(o)}
+                className="flex-row items-center justify-center mt-3 py-2.5 rounded-xl border border-red-100"
+                accessibilityRole="button"
+                accessibilityLabel={`Eliminar ${o.name}`}
+              >
+                <Trash2 size={16} color="#dc2626" strokeWidth={2} />
+                <Text className="text-sm font-medium text-red-600 ml-2">Eliminar empresa</Text>
+              </TouchableOpacity>
             </View>
           )}
         />
       )}
+
+      <DeleteOrganizationModal
+        org={toDelete}
+        deleting={deleting}
+        onCancel={() => setToDelete(null)}
+        onConfirm={confirmDelete}
+      />
     </SafeAreaView>
   )
 }

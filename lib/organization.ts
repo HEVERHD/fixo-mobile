@@ -1,10 +1,30 @@
 import * as ImagePicker from 'expo-image-picker'
 import { supabase } from '@/lib/supabase'
 
+export type BusinessType = 'mantenimiento' | 'construccion' | 'ambos'
+
 export interface Organization {
   id: string
   name: string
   logo_url: string | null
+  business_type: BusinessType
+}
+
+export const BUSINESS_TYPES: Record<BusinessType, { label: string; description: string }> = {
+  mantenimiento: { label: 'Mantenimiento', description: 'Servicio técnico y mantenimiento de equipos' },
+  construccion: { label: 'Construcción', description: 'Obras y proyectos con avance y presupuesto' },
+  ambos: { label: 'Ambos', description: 'Mantenimiento de equipos y ejecución de obras' },
+}
+
+/** Which modules the app shows for each business type (same data model for all). */
+export function featuresFor(type: BusinessType | null | undefined) {
+  const t = type ?? 'mantenimiento'
+  return { equipos: t !== 'construccion', obras: t !== 'mantenimiento' }
+}
+
+export async function updateBusinessType(orgId: string, type: BusinessType) {
+  const { error } = await supabase.from('organizations').update({ business_type: type }).eq('id', orgId)
+  return !error
 }
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024 // matches the org-logos bucket limit
@@ -12,8 +32,8 @@ const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
 
 /** The caller's organization (RLS only returns their own). */
 export async function fetchMyOrganization(): Promise<Organization | null> {
-  const { data } = await supabase.from('organizations').select('id, name, logo_url').maybeSingle()
-  return data
+  const { data } = await supabase.from('organizations').select('id, name, logo_url, business_type').maybeSingle()
+  return data as Organization | null
 }
 
 export type LogoUploadResult =

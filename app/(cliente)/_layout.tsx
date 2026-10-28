@@ -5,7 +5,7 @@ import { tabScreenOptions, tabIcon } from '@/components/tabs'
 export default function ClienteLayout() {
   return (
     <Tabs screenOptions={tabScreenOptions}>
-      <Tabs.Screen name="index" options={{ title: 'Mis Activos', tabBarIcon: tabIcon(Package) }} />
+      <Tabs.Screen name="index" options={{ title: 'Mis Equipos', tabBarIcon: tabIcon(Package) }} />
       <Tabs.Screen name="perfil" options={{ title: 'Perfil', tabBarIcon: tabIcon(UserRound) }} />
     </Tabs>
   )

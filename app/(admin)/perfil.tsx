@@ -6,9 +6,11 @@ import { router, useFocusEffect, type Href } from 'expo-router'
 import { Camera, ShieldCheck, ChevronRight } from 'lucide-react-native'
 import { colors } from '@/lib/theme'
 import { supabase } from '@/lib/supabase'
-import { fetchMyOrganization, pickAndUploadLogo, type Organization } from '@/lib/organization'
+import { pickAndUploadLogo, updateBusinessType, type BusinessType } from '@/lib/organization'
 import { OrgAvatar } from '@/components/OrgAvatar'
 import { SignOutButton } from '@/components/ui'
+import { BusinessTypePicker } from '@/components/BusinessTypePicker'
+import { useOrganization } from '@/components/OrganizationContext'
 
 const UPLOAD_ERRORS = {
   'too-large': 'La imagen pesa más de 2 MB. Elige una más liviana.',
@@ -17,21 +19,21 @@ const UPLOAD_ERRORS = {
 } as const
 
 export default function PerfilAdmin() {
-  const [org, setOrg] = useState<Organization | null>(null)
+  // Shared with the tab bar, so changing the business type updates the tabs right away
+  const { org, refresh } = useOrganization()
   const [name, setName] = useState<string | null>(null)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [savingType, setSavingType] = useState(false)
 
   useFocusEffect(useCallback(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const [myOrg, { data: profile }, { data: isSuper }] = await Promise.all([
-        fetchMyOrganization(),
+      const [{ data: profile }, { data: isSuper }] = await Promise.all([
         supabase.from('profiles').select('full_name').eq('id', user.id).single(),
         supabase.rpc('is_super_admin'),
       ])
-      setOrg(myOrg)
       setName(profile?.full_name ?? null)
       setIsSuperAdmin(isSuper === true)
     })()
@@ -41,12 +43,20 @@ export default function PerfilAdmin() {
     if (!org) return
     setUploading(true)
     const result = await pickAndUploadLogo(org.id)
+    if (result.ok) await refresh()
     setUploading(false)
-    if (result.ok) {
-      setOrg({ ...org, logo_url: result.logoUrl })
-    } else if (result.reason !== 'canceled') {
+    if (!result.ok && result.reason !== 'canceled') {
       Alert.alert('Logo', UPLOAD_ERRORS[result.reason])
     }
+  }
+
+  async function changeBusinessType(type: BusinessType) {
+    if (!org || type === org.business_type || savingType) return
+    setSavingType(true)
+    const ok = await updateBusinessType(org.id, type)
+    if (ok) await refresh()
+    setSavingType(false)
+    if (!ok) Alert.alert('Tipo de empresa', 'No pudimos guardar el cambio. Inténtalo de nuevo.')
   }
 
   return (
@@ -80,6 +90,16 @@ export default function PerfilAdmin() {
           </TouchableOpacity>
           <Text className="text-xs text-gray-400 mt-1">Imagen cuadrada, PNG o JPG, máximo 2 MB</Text>
         </View>
+
+        {/* Business type: decides which tabs and dashboard widgets are shown */}
+        {org && (
+          <View className={`mb-6 ${savingType ? 'opacity-60' : ''}`}>
+            <BusinessTypePicker value={org.business_type} onChange={changeBusinessType} />
+            <Text className="text-xs text-gray-400 mt-2">
+              Define qué secciones ves: Equipos, Obras o ambas. Tus datos no se pierden al cambiarlo.
+            </Text>
+          </View>
+        )}
 
         {/* Me */}
         <Text className="text-sm font-semibold text-gray-500 uppercase mb-2">Mi cuenta</Text>

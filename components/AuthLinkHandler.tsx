@@ -60,7 +60,7 @@ export function AuthLinkHandler() {
         {notice.organization && (
           <Text className="text-base text-gray-600 text-center mt-2">
             <Text className="font-semibold text-gray-900">{notice.organization}</Text> está lista para gestionar
-            órdenes, activos y clientes.
+            órdenes, equipos y clientes.
           </Text>
         )}
       </FeedbackModal>

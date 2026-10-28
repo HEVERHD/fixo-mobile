@@ -1,5 +1,12 @@
 export type WorkOrderStatus = 'pendiente' | 'en_proceso' | 'completada' | 'cancelada'
 export type WorkOrderPriority = 'baja' | 'media' | 'alta' | 'urgente'
+export type WorkOrderType = 'preventivo' | 'correctivo' | 'instalacion'
+
+export const TYPE_LABEL: Record<WorkOrderType, string> = {
+  preventivo: 'Preventivo',
+  correctivo: 'Correctivo',
+  instalacion: 'Instalación',
+}
 
 export const STATUS_META: Record<WorkOrderStatus, { label: string; chip: string; text: string; dot: string }> = {
   pendiente: { label: 'Pendiente', chip: 'bg-amber-100', text: 'text-amber-800', dot: 'bg-amber-400' },

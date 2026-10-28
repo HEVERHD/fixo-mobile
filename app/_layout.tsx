@@ -61,7 +61,10 @@ export default function RootLayout() {
   return (
     <KeyboardProvider>
       <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="nueva-orden" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="nueva-obra" options={{ presentation: 'modal' }} />
+      </Stack>
       {/* Email-confirmation deep links: auto sign-in + welcome modal */}
       <AuthLinkHandler />
     </KeyboardProvider>

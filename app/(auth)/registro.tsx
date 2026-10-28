@@ -10,9 +10,11 @@ import { supabase } from '@/lib/supabase'
 import { colors } from '@/lib/theme'
 import { TextField } from '@/components/TextField'
 import { AuthLayout, PrimaryButton } from '@/components/AuthLayout'
+import { BusinessTypePicker } from '@/components/BusinessTypePicker'
 
 const schema = z.object({
   organizationName: z.string().trim().min(2, 'Escribe el nombre de tu empresa'),
+  businessType: z.enum(['mantenimiento', 'construccion', 'ambos'], { error: 'Elige a qué se dedica tu empresa' }),
   fullName: z.string().trim().min(2, 'Escribe tu nombre'),
   email: z.string().trim().email('Email inválido'),
   password: z.string().min(8, 'Mínimo 8 caracteres'),
@@ -47,7 +49,11 @@ export default function RegistroScreen() {
       email: data.email,
       password: data.password,
       options: {
-        data: { organization_name: data.organizationName, full_name: data.fullName },
+        data: {
+          organization_name: data.organizationName,
+          business_type: data.businessType,
+          full_name: data.fullName,
+        },
         // Confirmation link opens the app (fixo://login) instead of the default Site URL.
         // The URL must be listed in Supabase → Authentication → URL Configuration → Redirect URLs.
         emailRedirectTo: Linking.createURL('/login'),
@@ -113,6 +119,14 @@ export default function RegistroScreen() {
               onBlur={onBlur}
               error={errors.organizationName?.message}
             />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="businessType"
+          render={({ field: { onChange, value } }) => (
+            <BusinessTypePicker value={value ?? null} onChange={onChange} error={errors.businessType?.message} />
           )}
         />
 

@@ -6,10 +6,11 @@ import { useFocusEffect } from 'expo-router'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
-  Users, ClipboardList, Package, Briefcase, TrendingUp, type LucideIcon,
+  Users, ClipboardList, HardHat, Package, Briefcase, TrendingUp, type LucideIcon,
 } from 'lucide-react-native'
 import { colors } from '@/lib/theme'
 import { fetchPlatformStats, type PlatformStats } from '@/lib/platform'
+import { BUSINESS_TYPES, type BusinessType } from '@/lib/organization'
 
 export default function PlatformOverview() {
   const [stats, setStats] = useState<PlatformStats | null>(null)
@@ -75,6 +76,16 @@ export default function PlatformOverview() {
                   +{stats.organizations_last_30d} en los últimos 30 días
                 </Text>
               </View>
+              {stats.organizations_by_type && (
+                <View className="flex-row gap-2 mt-4">
+                  {(Object.keys(BUSINESS_TYPES) as BusinessType[]).map(t => (
+                    <View key={t} className="flex-1 bg-white/10 rounded-xl py-2 items-center">
+                      <Text className="text-lg font-bold text-white">{stats.organizations_by_type?.[t] ?? 0}</Text>
+                      <Text className="text-[11px] text-blue-200">{BUSINESS_TYPES[t].label}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
 
             {/* Signups chart */}
@@ -89,7 +100,10 @@ export default function PlatformOverview() {
               <StatCard icon={ClipboardList} tint="bg-cyan-100" iconColor="#0891b2" label="Órdenes" value={stats.work_orders}
                 detail={`${completion}% completadas`} />
               <StatCard icon={Briefcase} tint="bg-purple-100" iconColor="#9333ea" label="Clientes finales" value={stats.clients} />
-              <StatCard icon={Package} tint="bg-green-100" iconColor="#16a34a" label="Activos" value={stats.assets} />
+              <StatCard icon={Package} tint="bg-green-100" iconColor="#16a34a" label="Equipos" value={stats.assets} />
+              {stats.projects !== undefined && (
+                <StatCard icon={HardHat} tint="bg-amber-100" iconColor="#d97706" label="Obras" value={stats.projects} />
+              )}
             </View>
           </>
         )}

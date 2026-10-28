@@ -57,12 +57,12 @@ export default function ClienteActivos() {
         contentContainerClassName="p-4"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} />}
       >
-        <Text className="text-2xl font-bold text-gray-900 mb-4">Mis Activos</Text>
+        <Text className="text-2xl font-bold text-gray-900 mb-4">Mis equipos</Text>
 
         {assets.length === 0 ? (
           <EmptyState
             icon={Package}
-            title="No tienes activos registrados"
+            title="No tienes equipos registrados"
             message="Tus equipos aparecerán aquí una vez el contratista los registre."
           />
         ) : (

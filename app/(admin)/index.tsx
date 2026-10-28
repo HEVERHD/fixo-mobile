@@ -5,15 +5,17 @@ import { StatusBar } from 'expo-status-bar'
 import { router, useFocusEffect, type Href } from 'expo-router'
 import {
   ClipboardList, Wrench, Package, Building2, ChevronRight, FileText,
-  CheckCheck, Zap, ArrowRight, type LucideIcon,
+  CheckCheck, Zap, ArrowRight, Plus, HardHat, type LucideIcon,
 } from 'lucide-react-native'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { colors } from '@/lib/theme'
 import { supabase } from '@/lib/supabase'
 import { STATUS_META, OPEN_STATUSES, type WorkOrderStatus, type WorkOrderPriority } from '@/lib/workOrders'
-import { fetchMyOrganization, type Organization } from '@/lib/organization'
+import { PROJECT_STATUS_META } from '@/lib/projects'
 import { OrgAvatar } from '@/components/OrgAvatar'
+import { ProgressBar } from '@/components/ProgressBar'
+import { useOrganization } from '@/components/OrganizationContext'
 
 interface Stats {
   totalOrders: number
@@ -22,6 +24,14 @@ interface Stats {
   urgentOrders: number
   totalAssets: number
   totalClients: number
+  activeProjects: number
+}
+
+interface ActiveProject {
+  id: string
+  name: string
+  progress: number
+  clients: { company_name: string } | null
 }
 
 interface RecentOrder {
@@ -44,8 +54,10 @@ function greeting(date: Date) {
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [recent, setRecent] = useState<RecentOrder[]>([])
-  const [org, setOrg] = useState<Organization | null>(null)
+  const [projects, setProjects] = useState<ActiveProject[]>([])
   const [refreshing, setRefreshing] = useState(false)
+  // Business type decides which KPIs and sections are shown
+  const { org, features } = useOrganization()
 
   const load = useCallback(async () => {
     const count = { count: 'exact', head: true } as const
@@ -57,7 +69,8 @@ export default function AdminDashboard() {
       { count: totalAssets },
       { count: totalClients },
       { data: recentOrders },
-      myOrg,
+      { count: activeProjects },
+      { data: activeProjectList },
     ] = await Promise.all([
       supabase.from('work_orders').select('*', count),
       supabase.from('work_orders').select('*', count).eq('status', 'pendiente'),
@@ -70,7 +83,13 @@ export default function AdminDashboard() {
         .select('id, order_number, description, status, priority, scheduled_date, clients(company_name)')
         .order('created_at', { ascending: false })
         .limit(5),
-      fetchMyOrganization(),
+      supabase.from('projects').select('*', count).eq('status', 'en_ejecucion'),
+      supabase
+        .from('projects')
+        .select('id, name, progress, clients(company_name)')
+        .eq('status', 'en_ejecucion')
+        .order('created_at', { ascending: false })
+        .limit(3),
     ])
     setStats({
       totalOrders: totalOrders ?? 0,
@@ -79,9 +98,10 @@ export default function AdminDashboard() {
       urgentOrders: urgentOrders ?? 0,
       totalAssets: totalAssets ?? 0,
       totalClients: totalClients ?? 0,
+      activeProjects: activeProjects ?? 0,
     })
     setRecent((recentOrders ?? []) as unknown as RecentOrder[])
-    setOrg(myOrg)
+    setProjects((activeProjectList ?? []) as unknown as ActiveProject[])
     setRefreshing(false)
   }, [])
 
@@ -140,7 +160,68 @@ export default function AdminDashboard() {
           onPress={() => go('/(admin)/ordenes')}
         />
 
-        {/* KPIs */}
+        {/* Quick action */}
+        <TouchableOpacity
+          onPress={() => go('/nueva-orden')}
+          activeOpacity={0.8}
+          className="flex-row items-center bg-white border border-gray-100 rounded-2xl p-4 mt-3"
+          accessibilityRole="button"
+        >
+          <View className="w-10 h-10 rounded-xl bg-primary items-center justify-center">
+            <Plus size={20} color="#fff" strokeWidth={2.4} />
+          </View>
+          <View className="flex-1 ml-3">
+            <Text className="font-semibold text-gray-900">Nueva orden de trabajo</Text>
+            <Text className="text-xs text-gray-500">Registra un servicio y asígnalo a tu equipo</Text>
+          </View>
+          <ChevronRight size={18} color="#d1d5db" />
+        </TouchableOpacity>
+
+        {features.obras && (
+          <TouchableOpacity
+            onPress={() => go('/nueva-obra')}
+            activeOpacity={0.8}
+            className="flex-row items-center bg-white border border-gray-100 rounded-2xl p-4 mt-3"
+            accessibilityRole="button"
+          >
+            <View className="w-10 h-10 rounded-xl bg-navy items-center justify-center">
+              <HardHat size={20} color="#fff" strokeWidth={2.2} />
+            </View>
+            <View className="flex-1 ml-3">
+              <Text className="font-semibold text-gray-900">Nueva obra</Text>
+              <Text className="text-xs text-gray-500">Agrupa órdenes, avance y presupuesto</Text>
+            </View>
+            <ChevronRight size={18} color="#d1d5db" />
+          </TouchableOpacity>
+        )}
+
+        {/* Active projects (construction) */}
+        {features.obras && projects.length > 0 && (
+          <>
+            <View className="flex-row items-center justify-between mt-6 mb-3">
+              <Text className="text-base font-semibold text-gray-900">Obras en ejecución</Text>
+              <TouchableOpacity onPress={() => go('/(admin)/obras' as Href)} hitSlop={8}>
+                <Text className="text-sm font-medium text-primary">Ver todas</Text>
+              </TouchableOpacity>
+            </View>
+            <View className="bg-white rounded-2xl border border-gray-100 px-4">
+              {projects.map((p, i) => (
+                <TouchableOpacity
+                  key={p.id}
+                  onPress={() => go('/(admin)/obras' as Href)}
+                  activeOpacity={0.7}
+                  className={`py-3.5 ${i === projects.length - 1 ? '' : 'border-b border-gray-100'}`}
+                >
+                  <Text className="font-semibold text-gray-900 text-sm" numberOfLines={1}>{p.name}</Text>
+                  {p.clients && <Text className="text-xs text-gray-500 mb-2">{p.clients.company_name}</Text>}
+                  <ProgressBar value={p.progress} barClass={PROJECT_STATUS_META.en_ejecucion.bar} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* KPIs: the third card follows the business type */}
         <Text className="text-base font-semibold text-gray-900 mt-6 mb-3">Resumen</Text>
         <View className="flex-row flex-wrap gap-3">
           <KPICard
@@ -153,11 +234,20 @@ export default function AdminDashboard() {
             icon={Wrench} tint="bg-cyan-100" iconColor="#0891b2"
             onPress={() => go('/(admin)/ordenes')}
           />
-          <KPICard
-            label="Activos" value={stats.totalAssets}
-            icon={Package} tint="bg-green-100" iconColor="#16a34a"
-            onPress={() => go('/(admin)/activos')}
-          />
+          {features.obras && (
+            <KPICard
+              label="Obras activas" value={stats.activeProjects}
+              icon={HardHat} tint="bg-amber-100" iconColor="#d97706"
+              onPress={() => go('/(admin)/obras' as Href)}
+            />
+          )}
+          {features.equipos && (
+            <KPICard
+              label="Equipos" value={stats.totalAssets}
+              icon={Package} tint="bg-green-100" iconColor="#16a34a"
+              onPress={() => go('/(admin)/activos')}
+            />
+          )}
           <KPICard
             label="Clientes" value={stats.totalClients}
             icon={Building2} tint="bg-purple-100" iconColor="#9333ea"

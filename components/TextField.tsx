@@ -30,11 +30,16 @@ export function TextField({ label, icon: Icon, error, secure, ref, onFocus, onBl
   return (
     <View>
       <Text className="text-sm font-medium text-gray-700 mb-2">{label}</Text>
-      <View className={`flex-row items-center h-14 rounded-2xl border px-4 ${border}`}>
+      <View
+        className={`flex-row rounded-2xl border px-4 ${border} ${
+          inputProps.multiline ? 'items-start min-h-28 py-3.5' : 'items-center h-14'
+        }`}
+      >
         <Icon size={20} color={iconColor} strokeWidth={1.8} />
         <TextInput
           ref={ref}
-          className="flex-1 ml-3 py-0 text-base text-gray-900"
+          className={`flex-1 ml-3 py-0 text-base text-gray-900 ${inputProps.multiline ? 'min-h-20' : ''}`}
+          textAlignVertical={inputProps.multiline ? 'top' : 'center'}
           placeholderTextColor="#9ca3af"
           secureTextEntry={secure && !revealed}
           onFocus={e => { setFocused(true); onFocus?.(e) }}

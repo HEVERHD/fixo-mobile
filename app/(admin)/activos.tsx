@@ -44,12 +44,12 @@ export default function ActivosAdmin() {
         contentContainerClassName="p-4"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} />}
       >
-        <Text className="text-2xl font-bold text-gray-900 mb-4">Activos / QR</Text>
+        <Text className="text-2xl font-bold text-gray-900 mb-4">Equipos</Text>
 
         {assets.length === 0 ? (
           <EmptyState
             icon={Package}
-            title="No hay activos registrados"
+            title="No hay equipos registrados"
             message="Los equipos que registres aparecerán aquí con su código QR."
           />
         ) : (
