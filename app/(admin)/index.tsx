@@ -12,6 +12,8 @@ import { es } from 'date-fns/locale'
 import { colors } from '@/lib/theme'
 import { supabase } from '@/lib/supabase'
 import { STATUS_META, OPEN_STATUSES, type WorkOrderStatus, type WorkOrderPriority } from '@/lib/workOrders'
+import { fetchMyOrganization, type Organization } from '@/lib/organization'
+import { OrgAvatar } from '@/components/OrgAvatar'
 
 interface Stats {
   totalOrders: number
@@ -42,7 +44,7 @@ function greeting(date: Date) {
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [recent, setRecent] = useState<RecentOrder[]>([])
-  const [initial, setInitial] = useState('')
+  const [org, setOrg] = useState<Organization | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
   const load = useCallback(async () => {
@@ -55,7 +57,7 @@ export default function AdminDashboard() {
       { count: totalAssets },
       { count: totalClients },
       { data: recentOrders },
-      { data: { user } },
+      myOrg,
     ] = await Promise.all([
       supabase.from('work_orders').select('*', count),
       supabase.from('work_orders').select('*', count).eq('status', 'pendiente'),
@@ -68,7 +70,7 @@ export default function AdminDashboard() {
         .select('id, order_number, description, status, priority, scheduled_date, clients(company_name)')
         .order('created_at', { ascending: false })
         .limit(5),
-      supabase.auth.getUser(),
+      fetchMyOrganization(),
     ])
     setStats({
       totalOrders: totalOrders ?? 0,
@@ -79,7 +81,7 @@ export default function AdminDashboard() {
       totalClients: totalClients ?? 0,
     })
     setRecent((recentOrders ?? []) as unknown as RecentOrder[])
-    setInitial((user?.email ?? '?').charAt(0).toUpperCase())
+    setOrg(myOrg)
     setRefreshing(false)
   }, [])
 
@@ -120,14 +122,14 @@ export default function AdminDashboard() {
               {format(now, "EEEE, d 'de' MMMM", { locale: es })}
             </Text>
             <Text className="text-2xl font-bold text-gray-900 mt-0.5">{greeting(now)}</Text>
+            {org && <Text className="text-sm text-gray-500 mt-0.5" numberOfLines={1}>{org.name}</Text>}
           </View>
           <TouchableOpacity
             onPress={() => go('/(admin)/perfil')}
-            className="w-11 h-11 rounded-full bg-navy items-center justify-center"
             accessibilityRole="button"
-            accessibilityLabel="Ir a mi perfil"
+            accessibilityLabel="Ir al perfil de mi empresa"
           >
-            <Text className="text-white font-bold text-base">{initial}</Text>
+            <OrgAvatar name={org?.name ?? ''} logoUrl={org?.logo_url} size={48} />
           </TouchableOpacity>
         </View>
 
