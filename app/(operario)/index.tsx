@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
-import { View, Text, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity, Alert } from 'react-native'
+import { useCallback, useState } from 'react'
+import { View, Text, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native'
 import { colors } from '@/lib/theme'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useFocusEffect } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { CircleCheckBig, Building2, CalendarDays, Play } from 'lucide-react-native'
 import { EmptyState, MetaRow } from '@/components/ui'
@@ -17,21 +18,15 @@ export default function OperarioOrders() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUserId(user?.id ?? null)
-    })
-  }, [])
-
-  async function load() {
-    if (!userId) return
-    // Get operator id from userId
+  const load = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    // Get operator id from the signed-in user
     const { data: op } = await supabase
       .from('operators')
       .select('id')
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
       .single()
 
     if (!op) { setLoading(false); setRefreshing(false); return }
@@ -46,9 +41,10 @@ export default function OperarioOrders() {
     setOrders(data ?? [])
     setLoading(false)
     setRefreshing(false)
-  }
+  }, [])
 
-  useEffect(() => { if (userId) load() }, [userId])
+  // Reload when coming back from closing an order
+  useFocusEffect(useCallback(() => { load() }, [load]))
 
   async function markInProgress(orderId: string) {
     await supabase.from('work_orders').update({ status: 'en_proceso' }).eq('id', orderId)

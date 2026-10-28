@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { View, Text, ScrollView, ActivityIndicator, RefreshControl } from 'react-native'
 import { colors } from '@/lib/theme'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useFocusEffect } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { Package, MapPin, CalendarCheck } from 'lucide-react-native'
 import { EmptyState, MetaRow } from '@/components/ui'
@@ -11,7 +12,7 @@ export default function ClienteActivos() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  async function load() {
+  const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
@@ -32,9 +33,9 @@ export default function ClienteActivos() {
     setAssets(data ?? [])
     setLoading(false)
     setRefreshing(false)
-  }
+  }, [])
 
-  useEffect(() => { load() }, [])
+  useFocusEffect(useCallback(() => { load() }, [load]))
 
   const STATUS: Record<string, { bg: string; text: string; label: string }> = {
     activo: { bg: 'bg-green-100', text: 'text-green-700', label: 'Activo' },
