@@ -10,7 +10,7 @@ const VARIANTS = {
 
 /** Centered card modal for one-off moments (welcome, expired link…). */
 export function FeedbackModal({
-  visible, variant, icon: Icon, title, children, actionLabel, onAction,
+  visible, variant, icon: Icon, title, children, actionLabel, onAction, secondaryLabel, onSecondary,
 }: {
   visible: boolean
   variant: keyof typeof VARIANTS
@@ -19,6 +19,9 @@ export function FeedbackModal({
   children: ReactNode
   actionLabel: string
   onAction: () => void
+  /** Optional text button under the main action (e.g. "Ahora no"). */
+  secondaryLabel?: string
+  onSecondary?: () => void
 }) {
   const v = VARIANTS[variant]
 
@@ -49,6 +52,11 @@ export function FeedbackModal({
           >
             <Text className="text-white font-semibold text-base">{actionLabel}</Text>
           </TouchableOpacity>
+          {secondaryLabel && onSecondary && (
+            <TouchableOpacity onPress={onSecondary} hitSlop={8} className="mt-4" accessibilityRole="button">
+              <Text className="text-gray-500 font-medium text-base">{secondaryLabel}</Text>
+            </TouchableOpacity>
+          )}
         </Animated.View>
       </View>
     </Modal>

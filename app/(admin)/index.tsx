@@ -251,6 +251,7 @@ export default function AdminDashboard() {
           <KPICard
             label="Clientes" value={stats.totalClients}
             icon={Building2} tint="bg-purple-100" iconColor="#9333ea"
+            onPress={() => go('/clientes')}
           />
         </View>
 

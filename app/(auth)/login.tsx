@@ -100,6 +100,15 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </Link>
       </View>
+
+      <View className="flex-row justify-center items-center mt-3">
+        <Text className="text-sm text-gray-500">¿Te invitó tu empresa? </Text>
+        <Link href="/(auth)/unirme" asChild>
+          <TouchableOpacity hitSlop={8} accessibilityRole="link">
+            <Text className="text-sm font-semibold text-primary">Crea tu cuenta</Text>
+          </TouchableOpacity>
+        </Link>
+      </View>
     </AuthLayout>
   )
 }

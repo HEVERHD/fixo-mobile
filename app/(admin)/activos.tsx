@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react'
-import { View, Text, ScrollView, ActivityIndicator, RefreshControl } from 'react-native'
+import { View, Text, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native'
 import { colors } from '@/lib/theme'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useFocusEffect } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { supabase } from '@/lib/supabase'
-import { Package, Building2, MapPin } from 'lucide-react-native'
+import { Package, Building2, MapPin, Plus, QrCode } from 'lucide-react-native'
 import { EmptyState, MetaRow } from '@/components/ui'
 
 const STATUS_COLOR: Record<string, { bg: string; text: string }> = {
@@ -21,7 +21,7 @@ export default function ActivosAdmin() {
   const load = useCallback(async () => {
     const { data } = await supabase
       .from('assets')
-      .select('id, name, type, brand, model, status, location, clients(company_name)')
+      .select('id, name, type, brand, model, status, location, qr_code, clients(company_name)')
       .order('created_at', { ascending: false })
     setAssets(data ?? [])
     setLoading(false)
@@ -29,6 +29,8 @@ export default function ActivosAdmin() {
   }, [])
 
   useFocusEffect(useCallback(() => { load() }, [load]))
+
+  const newAsset = () => router.push('/nuevo-equipo')
 
   if (loading) {
     return (
@@ -42,17 +44,27 @@ export default function ActivosAdmin() {
     <SafeAreaView className="flex-1 bg-gray-50">
       <ScrollView
         className="flex-1"
-        contentContainerClassName="p-4"
+        contentContainerClassName="p-4 pb-28"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} />}
       >
         <Text className="text-2xl font-bold text-gray-900 mb-4">Equipos</Text>
 
         {assets.length === 0 ? (
-          <EmptyState
-            icon={Package}
-            title="No hay equipos registrados"
-            message="Los equipos que registres aparecerán aquí con su código QR."
-          />
+          <View className="gap-4">
+            <EmptyState
+              icon={Package}
+              title="No hay equipos registrados"
+              message="Los equipos que registres aparecerán aquí con su código QR."
+            />
+            <TouchableOpacity
+              onPress={newAsset}
+              className="h-12 rounded-2xl bg-primary flex-row items-center justify-center"
+              accessibilityRole="button"
+            >
+              <Plus size={18} color="#fff" strokeWidth={2.4} />
+              <Text className="text-white font-semibold ml-2">Registrar equipo</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           assets.map((asset) => {
             const color = STATUS_COLOR[asset.status] ?? { bg: 'bg-gray-100', text: 'text-gray-800' }
@@ -73,11 +85,28 @@ export default function ActivosAdmin() {
                 {asset.location && (
                   <MetaRow icon={MapPin}>{asset.location}</MetaRow>
                 )}
+                {asset.qr_code && (
+                  <MetaRow icon={QrCode}>{asset.qr_code}</MetaRow>
+                )}
               </View>
             )
           })
         )}
       </ScrollView>
+
+      {assets.length > 0 && (
+        <TouchableOpacity
+          onPress={newAsset}
+          activeOpacity={0.85}
+          className="absolute right-5 bottom-6 h-14 pl-5 pr-6 rounded-full bg-primary flex-row items-center"
+          style={{ elevation: 6, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } }}
+          accessibilityRole="button"
+          accessibilityLabel="Registrar nuevo equipo"
+        >
+          <Plus size={22} color="#fff" strokeWidth={2.4} />
+          <Text className="text-white font-semibold text-base ml-2">Nuevo</Text>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   )
 }

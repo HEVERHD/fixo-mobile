@@ -1,6 +1,6 @@
 import '../global.css'
 import { useEffect, useState } from 'react'
-import { Stack, router, type Href } from 'expo-router'
+import { Stack, router, useSegments, type Href } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { KeyboardProvider } from 'react-native-keyboard-controller'
 import { supabase, type Role } from '@/lib/supabase'
@@ -12,6 +12,9 @@ export default function RootLayout() {
   const [role, setRole] = useState<Role | null>(null)
   const [superAdmin, setSuperAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
+  const segments = useSegments()
+  const inAuthGroup = segments[0] === '(auth)'
+  const onNoAccess = segments[0] === 'sin-acceso'
 
   useEffect(() => {
     async function fetchRole(userId: string) {
@@ -19,8 +22,14 @@ export default function RootLayout() {
         supabase.from('profiles').select('role, organization_id').eq('id', userId).single(),
         supabase.rpc('is_super_admin'),
       ])
+      let nextRole = data?.organization_id ? ((data.role as Role) ?? null) : null
+      // No company yet: accept a pending invitation for this (confirmed) email, if any
+      if (data && !data.organization_id) {
+        const { data: claimed } = await supabase.rpc('claim_my_invitation')
+        if (claimed) nextRole = claimed as Role
+      }
       // A role only counts once the user belongs to an organization
-      setRole(data?.organization_id ? ((data.role as Role) ?? null) : null)
+      setRole(nextRole)
       setSuperAdmin(isSuper === true)
       setLoading(false)
     }
@@ -35,8 +44,11 @@ export default function RootLayout() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
-      if (session) fetchRole(session.user.id)
-      else {
+      if (session) {
+        // Hold routing until the role is known, so "sin acceso" doesn't flash on sign-in
+        setLoading(true)
+        fetchRole(session.user.id)
+      } else {
         setRole(null)
         setSuperAdmin(false)
         setLoading(false)
@@ -49,14 +61,17 @@ export default function RootLayout() {
   useEffect(() => {
     if (loading) return
     if (!session) {
-      router.replace('/(auth)/login')
+      // Stay on sign-up screens opened from a link (e.g. fixo://unirme?email=…)
+      if (!inAuthGroup) router.replace('/(auth)/login')
     } else if (superAdmin) {
       // Platform owners land on the platform panel; they can jump to their own company from there
       router.replace('/(superadmin)' as Href)
     } else if (role) {
       router.replace(`/(${role})` as Href)
+    } else if (!onNoAccess) {
+      router.replace('/sin-acceso' as Href)
     }
-  }, [session, role, superAdmin, loading])
+  }, [session, role, superAdmin, loading, inAuthGroup, onNoAccess])
 
   return (
     <KeyboardProvider>
@@ -64,6 +79,9 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="nueva-orden" options={{ presentation: 'modal' }} />
         <Stack.Screen name="nueva-obra" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="nuevo-cliente" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="nuevo-equipo" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="invitar" options={{ presentation: 'modal' }} />
       </Stack>
       {/* Email-confirmation deep links: auto sign-in + welcome modal */}
       <AuthLinkHandler />

@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Alert, ActivityIndicator, ScrollView } fr
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { router, useFocusEffect, type Href } from 'expo-router'
-import { Camera, ShieldCheck, ChevronRight } from 'lucide-react-native'
+import { Camera, ShieldCheck, ChevronRight, HardHat, Building2 } from 'lucide-react-native'
 import { colors } from '@/lib/theme'
 import { supabase } from '@/lib/supabase'
 import { pickAndUploadLogo, updateBusinessType, type BusinessType } from '@/lib/organization'
@@ -100,6 +100,39 @@ export default function PerfilAdmin() {
             </Text>
           </View>
         )}
+
+        {/* People: technicians and client companies, with their invitations */}
+        <Text className="text-sm font-semibold text-gray-500 uppercase mb-2">Mi equipo y clientes</Text>
+        <View className="bg-white rounded-2xl border border-gray-100 mb-6">
+          <TouchableOpacity
+            onPress={() => router.push('/tecnicos')}
+            className="p-4 flex-row items-center border-b border-gray-100"
+            accessibilityRole="button"
+          >
+            <View className="w-9 h-9 rounded-xl bg-blue-50 items-center justify-center mr-3">
+              <HardHat size={18} color={colors.primary} strokeWidth={2} />
+            </View>
+            <View className="flex-1">
+              <Text className="font-medium text-gray-900">Técnicos</Text>
+              <Text className="text-xs text-gray-500">Invita a tu equipo de campo</Text>
+            </View>
+            <ChevronRight size={18} color="#d1d5db" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push('/clientes')}
+            className="p-4 flex-row items-center"
+            accessibilityRole="button"
+          >
+            <View className="w-9 h-9 rounded-xl bg-purple-50 items-center justify-center mr-3">
+              <Building2 size={18} color="#9333ea" strokeWidth={2} />
+            </View>
+            <View className="flex-1">
+              <Text className="font-medium text-gray-900">Clientes</Text>
+              <Text className="text-xs text-gray-500">Registra clientes y dales acceso al portal</Text>
+            </View>
+            <ChevronRight size={18} color="#d1d5db" />
+          </TouchableOpacity>
+        </View>
 
         {/* Me */}
         <Text className="text-sm font-semibold text-gray-500 uppercase mb-2">Mi cuenta</Text>
