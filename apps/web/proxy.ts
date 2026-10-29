@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_ROUTES = ['/login', '/register', '/qr']
+const PUBLIC_ROUTES = ['/login', '/register', '/unirme', '/qr']
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -49,11 +49,13 @@ export async function proxy(request: NextRequest) {
     // Get role from profiles
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, organization_id')
       .eq('id', user.id)
       .single()
 
-    const role = profile?.role
+    // A role only counts once the user belongs to a company (same rule as the app);
+    // until then login.actions claims their invitation
+    const role = profile?.organization_id ? profile.role : null
 
     // Redirect root to role dashboard
     if (pathname === '/') {
@@ -80,7 +82,7 @@ export async function proxy(request: NextRequest) {
     }
 
     // Redirect /login to dashboard if already authenticated
-    if (pathname === '/login' || pathname === '/register') {
+    if (pathname === '/login' || pathname === '/register' || pathname === '/unirme') {
       if (!role) return supabaseResponse  // no profile yet — let them log in again
       const url = request.nextUrl.clone()
       url.pathname = `/${role}`

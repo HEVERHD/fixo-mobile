@@ -21,15 +21,18 @@ export const ROLE_LABEL: Record<InviteRole, string> = {
 
 export const normalizeEmail = (email: string) => email.trim().toLowerCase()
 
-/** Text sent by WhatsApp/email. The link opens the app's "unirme" screen (scheme from apps/mobile/app.json). */
-export function invitationMessage(inv: { email: string; role: InviteRole; full_name: string | null }, orgName: string) {
-  const link = `fixo://unirme?email=${encodeURIComponent(inv.email)}`
+/**
+ * Text sent by WhatsApp/email: same steps as the app, plus the web sign-up link
+ * (clients use the web portal). `fixo://` opens the app (scheme from apps/mobile/app.json).
+ */
+export function invitationMessage(inv: { email: string; role: InviteRole; full_name: string | null }, orgName: string, webBase: string) {
+  const query = `email=${encodeURIComponent(inv.email)}`
   const greeting = inv.full_name ? `Hola ${inv.full_name.split(' ')[0]}` : 'Hola'
   return (
     `${greeting}, ${orgName || 'tu empresa'} te invitó a Fixo como ${ROLE_LABEL[inv.role]}.\n\n` +
-    `1. Instala la app Fixo.\n` +
-    `2. Crea tu cuenta con este correo: ${inv.email}\n` +
-    `3. Confirma el correo y listo.\n\n` +
-    `Abrir en la app: ${link}`
+    `1. Crea tu cuenta con este correo: ${inv.email}\n` +
+    `2. Confirma el correo y listo.\n\n` +
+    `Desde la web: ${webBase.replace(/\/+$/, '')}/unirme?${query}\n` +
+    `Desde la app Fixo: fixo://unirme?${query}`
   )
 }

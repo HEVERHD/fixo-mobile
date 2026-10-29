@@ -274,3 +274,6 @@ Problemas que la web ya traía antes del monorepo:
 - **12 errores de TypeScript** y **1 error de lint** (más 23 avisos). `next build` pasa solo porque `apps/web/next.config.ts` tiene `typescript: { ignoreBuildErrors: true }`. Por eso `yarn typecheck` y `yarn lint` fallan hoy en la parte de la web. La solución es generar los tipos de Supabase y quitar esa opción.
 - **Esquema viejo:** `apps/web/supabase/migrations/` (`001`–`005`) es el esquema de antes de multiempresa y ya no es la fuente de verdad. La web hay que revisarla contra las migraciones de la raíz (`organization_id`, roles por empresa, RLS).
 - **Despliegue:** no puede ir a Vercel. Para GCP (Cloud Run) o Azure, el build tiene que hacerse desde la raíz del monorepo (`yarn install` + `yarn workspace @fixo/web build`).
+- **Variables de la web** (además de las de Supabase):
+  - `NEXT_PUBLIC_SITE_URL`: URL pública de la web. Se usa en el enlace de confirmación del correo (`<url>/login?confirmado=1`) y en el enlace web de las invitaciones (`<url>/unirme?email=…`). Esa URL de confirmación debe estar en Supabase → Authentication → URL Configuration → Redirect URLs.
+  - `NEXT_PUBLIC_ASSET_LINK_BASE`: dominio de los stickers QR (`<base>/q/<código>`). Debe ser el mismo valor que `EXPO_PUBLIC_ASSET_LINK_BASE` de la app; por defecto `https://fixo.co`.

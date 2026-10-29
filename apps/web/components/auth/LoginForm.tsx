@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowRight, LoaderCircle, LockKeyhole, Mail } from 'lucide-react'
@@ -13,6 +13,8 @@ import { AuthField } from '@/components/auth/AuthField'
 
 export function LoginForm() {
   const router = useRouter()
+  // Set by the confirmation email link (see register/actions.ts)
+  const confirmed = useSearchParams().get('confirmado') === '1'
   const [error, setError] = useState<string | null>(null)
 
   const {
@@ -35,6 +37,11 @@ export function LoginForm() {
 
   return (
     <AuthShell title="Bienvenido" subtitle="Ingresa con tu cuenta para continuar.">
+      {confirmed && (
+        <p role="status" className="mb-5 rounded-2xl bg-green-50 p-3 text-sm text-green-800">
+          ¡Correo confirmado! Ya puedes iniciar sesión.
+        </p>
+      )}
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="space-y-5">
           <AuthField
@@ -84,6 +91,12 @@ export function LoginForm() {
         ¿Tu empresa aún no usa Fixo?{' '}
         <Link href="/register" className="font-semibold text-primary hover:underline">
           Regístrala
+        </Link>
+      </p>
+      <p className="mt-3 text-center text-sm text-gray-500">
+        ¿Te invitó tu empresa?{' '}
+        <Link href="/unirme" className="font-semibold text-primary hover:underline">
+          Crea tu cuenta
         </Link>
       </p>
     </AuthShell>
