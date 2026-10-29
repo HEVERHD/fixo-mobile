@@ -12,6 +12,8 @@ import { ASSET_STATUS_META, assetLink, qrSvg, type AssetStatus } from '@/lib/ass
 import { STATUS_META, OPEN_STATUSES, type WorkOrderStatus } from '@/lib/workOrders'
 import { Chip, EmptyState, InfoRow, PageHeader, PrimaryLink, Section } from '@/components/app/ui'
 import { PrintLabelsButton } from '@/components/assets/PrintLabelsButton'
+import { PhotoGallery } from '@/components/orders/PhotoGallery'
+import { signPhotoUrls } from '@/lib/photos'
 
 interface AssetDetail {
   id: string
@@ -34,6 +36,7 @@ interface Visit {
   tasks_performed: string
   observations: string | null
   pending_tasks: string | null
+  photos: string[] | null
   operators: { profiles: { full_name: string } | null } | null
   work_orders: { id: string; order_number: string } | null
 }
@@ -63,7 +66,7 @@ export async function AssetSheet({ id, mode, backHref }: { id: string; mode: 'ad
       .maybeSingle(),
     supabase
       .from('maintenance_records')
-      .select('id, date, tasks_performed, observations, pending_tasks, operators(profiles(full_name)), work_orders(id, order_number)')
+      .select('id, date, tasks_performed, observations, pending_tasks, photos, operators(profiles(full_name)), work_orders(id, order_number)')
       .eq('asset_id', id)
       .order('date', { ascending: false })
       .limit(20),
@@ -87,7 +90,10 @@ export async function AssetSheet({ id, mode, backHref }: { id: string; mode: 'ad
   const orderHref = (orderId: string) =>
     isAdmin ? `/admin/ordenes/${orderId}` : mode === 'operario' ? `/operario/ordenes/${orderId}` : null
   // Built from our own DB code (FX-…), rendered by the qrcode library
-  const svg = await qrSvg(assetLink(asset.qr_code))
+  const [svg, photoUrls] = await Promise.all([
+    qrSvg(assetLink(asset.qr_code)),
+    signPhotoUrls(supabase, visits.flatMap((x) => x.photos ?? [])),
+  ])
 
   return (
     <div className="mx-auto max-w-5xl p-4 sm:p-6 lg:p-10">
@@ -178,6 +184,7 @@ export async function AssetSheet({ id, mode, backHref }: { id: string; mode: 'ad
                       <VisitLine icon={Wrench} text={visit.tasks_performed} />
                       {visit.observations && <VisitLine icon={ClipboardList} text={visit.observations} muted />}
                       {visit.pending_tasks && <VisitLine icon={TriangleAlert} text={visit.pending_tasks} warn />}
+                      <PhotoGallery urls={(visit.photos ?? []).map((p) => photoUrls[p]!).filter(Boolean)} className="mt-3" />
                       {visit.operators?.profiles?.full_name && (
                         <p className="mt-2 flex items-center gap-1.5 text-xs text-gray-500">
                           <HardHat size={13} className="text-gray-400" /> {visit.operators.profiles.full_name}

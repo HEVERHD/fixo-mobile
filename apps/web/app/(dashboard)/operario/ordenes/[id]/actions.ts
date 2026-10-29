@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { operatorContext } from '@/lib/auth'
+import { MAX_PHOTOS, isOrderPhotoPath } from '@/lib/photos'
 
 type Result = { ok: true } | { ok: false; error: string }
 
@@ -34,6 +35,8 @@ const reportSchema = z.object({
   tasks_performed: z.string().trim().min(5, 'Cuenta qué hiciste (mínimo 5 caracteres)').max(4000),
   observations: z.string().trim().max(4000).transform((s) => s || null),
   pending_tasks: z.string().trim().max(4000).transform((s) => s || null),
+  // Storage paths already uploaded by the browser (see lib/photos.ts); checked against the order below
+  photos: z.array(z.string().max(200)).max(MAX_PHOTOS).default([]),
 })
 
 export type ReportInput = z.input<typeof reportSchema>
@@ -59,6 +62,9 @@ export async function completeOrder(id: string, input: ReportInput): Promise<Res
     .maybeSingle()
   if (!order) return { ok: false, error: 'Esta orden no está asignada a ti.' }
   if (order.status !== 'en_proceso') return { ok: false, error: 'Primero inicia el trabajo.' }
+  if (!report.data.photos.every((p) => isOrderPhotoPath(p, ctx.orgId, orderId.data))) {
+    return { ok: false, error: 'Alguna foto no pertenece a esta orden. Vuelve a subirla.' }
+  }
 
   const { error: reportError } = await ctx.supabase.from('maintenance_records').insert({
     work_order_id: orderId.data,

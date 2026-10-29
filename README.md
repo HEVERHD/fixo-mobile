@@ -48,7 +48,7 @@ Al iniciar sesión, la app abre el área que corresponde al rol del usuario dent
 
 ### 🚧 Próximo
 
-- Fotos de evidencia con marca de agua (fecha, hora y GPS).
+- Marca de agua (fecha, hora y GPS) en las fotos de evidencia (las fotos ya se suben con el reporte en la web y la app).
 - Fichaje de entrada y salida con geolocalización en el punto de trabajo.
 - Checklists de inspección (RETIE / NTC 2050) y firma digital del cliente.
 - Paquete compartido `packages/shared` con tipos y etiquetas comunes (estados, prioridades, solicitudes) para no duplicarlos entre las dos apps.
@@ -96,6 +96,7 @@ Las migraciones se aplican **a mano, en orden**, desde Supabase → SQL Editor. 
 | `20261028160000_work_reports.sql` | Reportes para órdenes sin equipo |
 | `20261028170000_invitations.sql` | Invitaciones y código QR por defecto en equipos |
 | `20261029100000_service_requests.sql` | Solicitudes de servicio de los clientes (portal web) y `accept_service_request()` para convertirlas en órdenes |
+| `20261029120000_work_photos.sql` | Bucket privado `work-photos` para las fotos de evidencia del reporte: sube el técnico asignado mientras la orden está en proceso; las ven la empresa y el cliente de esa orden |
 
 > ⚠️ **Falta la migración base.** La primera migración modifica tablas (`profiles`, `clients`, `operators`, `assets`, `work_orders`, `maintenance_records`, `apu_catalog`, `quotes`, `quote_items`, `invoices`) que se crearon directamente en Supabase. Hoy no se puede recrear la base de datos desde el repo. Pendiente: `supabase db dump --schema public` y guardarlo como `20261028000000_baseline.sql`.
 
