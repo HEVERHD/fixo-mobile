@@ -25,9 +25,9 @@ export default async function DashboardLayout({
   if (!profile) redirect('/login')
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex min-h-screen flex-col bg-gray-50 lg:h-screen lg:flex-row lg:overflow-hidden">
       <Sidebar role={profile.role as Role} fullName={profile.full_name} />
-      <main className="flex-1 overflow-y-auto bg-background">
+      <main className="flex-1 pb-20 lg:overflow-y-auto lg:pb-0">
         {children}
       </main>
     </div>

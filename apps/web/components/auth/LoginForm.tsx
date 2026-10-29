@@ -1,17 +1,18 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { ArrowRight, LoaderCircle, LockKeyhole, Mail } from 'lucide-react'
 import { loginAction } from '@/app/(auth)/login/actions'
 import { loginSchema, type LoginInput } from '@/lib/validations/auth.schema'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Zap } from 'lucide-react'
+import { AuthShell } from '@/components/auth/AuthShell'
+import { AuthField } from '@/components/auth/AuthField'
 
 export function LoginForm() {
+  const router = useRouter()
   const [error, setError] = useState<string | null>(null)
 
   const {
@@ -22,64 +23,69 @@ export function LoginForm() {
 
   async function onSubmit(data: LoginInput) {
     setError(null)
-    const result = await loginAction(data.email, data.password)
+    const result = await loginAction(data.email.trim().toLowerCase(), data.password)
     if (result.error) {
       setError(result.error)
       return
     }
-    // Cookies already set by the server action — hard redirect so proxy reads the session
-    window.location.href = `/${result.role}`
+    // The server action already set the session cookies, so the proxy sees them on this request
+    router.replace(`/${result.role}`)
+    router.refresh()
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary">
-            <Zap className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <CardTitle className="text-2xl">Fixo</CardTitle>
-          <CardDescription>
-            Gestión de Servicios Electromecánicos y Mantenimiento
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-1">
-              <Label htmlFor="email">Correo electrónico</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="usuario@empresa.com"
-                {...register('email')}
-              />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                {...register('password')}
-              />
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password.message}</p>
-              )}
-            </div>
-            {error && (
-              <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
-              </p>
-            )}
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? 'Ingresando...' : 'Ingresar'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthShell title="Bienvenido" subtitle="Ingresa con tu cuenta para continuar.">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate>
+        <div className="space-y-5">
+          <AuthField
+            id="email"
+            label="Correo electrónico"
+            icon={Mail}
+            type="email"
+            placeholder="usuario@empresa.com"
+            autoComplete="email"
+            error={errors.email?.message}
+            {...register('email')}
+          />
+          <AuthField
+            id="password"
+            label="Contraseña"
+            icon={LockKeyhole}
+            type="password"
+            placeholder="••••••••"
+            autoComplete="current-password"
+            error={errors.password?.message}
+            {...register('password')}
+          />
+        </div>
+
+        {error && (
+          <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-3 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary font-semibold text-white shadow-lg shadow-primary/25 transition hover:bg-brand-dark disabled:opacity-70"
+        >
+          {isSubmitting ? (
+            <LoaderCircle size={20} className="animate-spin" aria-label="Ingresando" />
+          ) : (
+            <>
+              Ingresar <ArrowRight size={18} strokeWidth={2.2} />
+            </>
+          )}
+        </button>
+      </form>
+
+      <p className="mt-6 text-center text-sm text-gray-500">
+        ¿Tu empresa aún no usa Fixo?{' '}
+        <Link href="/register" className="font-semibold text-primary hover:underline">
+          Regístrala
+        </Link>
+      </p>
+    </AuthShell>
   )
 }

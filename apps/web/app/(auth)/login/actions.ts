@@ -24,11 +24,9 @@ export async function loginAction(
     .single()
 
   if (profileError || !profile?.role) {
-    return {
-      error: profileError
-        ? `DB error: ${profileError.message} [${profileError.code}]`
-        : `Sin perfil para user: ${user.id}`,
-    }
+    // Log details on the server only; never expose DB errors or user ids to the browser
+    console.error('loginAction: profile lookup failed', profileError?.code ?? 'no-profile')
+    return { error: 'Tu cuenta no tiene un perfil asignado. Contacta al administrador de tu empresa.' }
   }
 
   return { role: profile.role }

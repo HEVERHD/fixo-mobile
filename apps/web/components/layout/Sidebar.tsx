@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -13,36 +14,37 @@ import {
   UserCog,
   DollarSign,
   LogOut,
-  Zap,
   QrCode,
   FileText,
+  type LucideIcon,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 
 interface NavItem {
   label: string
+  /** Shorter label for the mobile tab bar. */
+  short: string
   href: string
-  icon: React.ReactNode
+  icon: LucideIcon
 }
 
 const adminNav: NavItem[] = [
-  { label: 'Dashboard', href: '/admin', icon: <LayoutDashboard size={18} /> },
-  { label: 'Órdenes de Trabajo', href: '/admin/ordenes', icon: <ClipboardList size={18} /> },
-  { label: 'Activos / QR', href: '/admin/activos', icon: <QrCode size={18} /> },
-  { label: 'Clientes', href: '/admin/clientes', icon: <Users size={18} /> },
-  { label: 'Operarios', href: '/admin/operarios', icon: <UserCog size={18} /> },
-  { label: 'Financiero', href: '/admin/financiero', icon: <DollarSign size={18} /> },
+  { label: 'Inicio', short: 'Inicio', href: '/admin', icon: LayoutDashboard },
+  { label: 'Órdenes de trabajo', short: 'Órdenes', href: '/admin/ordenes', icon: ClipboardList },
+  { label: 'Equipos / QR', short: 'Equipos', href: '/admin/activos', icon: QrCode },
+  { label: 'Clientes', short: 'Clientes', href: '/admin/clientes', icon: Users },
+  { label: 'Técnicos', short: 'Técnicos', href: '/admin/operarios', icon: UserCog },
+  { label: 'Financiero', short: 'Finanzas', href: '/admin/financiero', icon: DollarSign },
 ]
 
 const operarioNav: NavItem[] = [
-  { label: 'Mis Órdenes', href: '/operario', icon: <ClipboardList size={18} /> },
-  { label: 'Activos', href: '/operario/activos', icon: <Package size={18} /> },
+  { label: 'Mis órdenes', short: 'Órdenes', href: '/operario', icon: ClipboardList },
+  { label: 'Equipos', short: 'Equipos', href: '/operario/activos', icon: Package },
 ]
 
 const clienteNav: NavItem[] = [
-  { label: 'Resumen', href: '/cliente', icon: <LayoutDashboard size={18} /> },
-  { label: 'Mis Activos', href: '/cliente/activos', icon: <Package size={18} /> },
-  { label: 'Cotizaciones', href: '/cliente/cotizaciones', icon: <FileText size={18} /> },
+  { label: 'Resumen', short: 'Inicio', href: '/cliente', icon: LayoutDashboard },
+  { label: 'Mis equipos', short: 'Equipos', href: '/cliente/activos', icon: Package },
+  { label: 'Cotizaciones', short: 'Cotizaciones', href: '/cliente/cotizaciones', icon: FileText },
 ]
 
 const navByRole: Record<Role, NavItem[]> = {
@@ -51,84 +53,127 @@ const navByRole: Record<Role, NavItem[]> = {
   cliente: clienteNav,
 }
 
+const roleLabel: Record<Role, string> = {
+  admin: 'Administrador',
+  operario: 'Técnico',
+  cliente: 'Cliente',
+}
+
+const ROOTS = ['/admin', '/operario', '/cliente']
+
+function isActive(pathname: string, href: string) {
+  return ROOTS.includes(href) ? pathname === href : pathname.startsWith(href)
+}
+
+function initials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('')
+}
+
 interface SidebarProps {
   role: Role
   fullName: string
 }
 
+/** Navy sidebar on desktop, bottom tab bar on small screens (like the mobile app). */
 export function Sidebar({ role, fullName }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const supabase = createClient()
 
   async function handleLogout() {
-    await supabase.auth.signOut()
+    await createClient().auth.signOut()
     router.push('/login')
     router.refresh()
   }
 
   const navItems = navByRole[role] ?? []
 
-  const roleLabel: Record<Role, string> = {
-    admin: 'Administrador',
-    operario: 'Operario',
-    cliente: 'Cliente',
-  }
-
   return (
-    <aside className="flex h-full w-64 flex-col border-r bg-card">
-      {/* Brand */}
-      <div className="flex items-center gap-3 border-b px-6 py-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-          <Zap className="h-5 w-5 text-primary-foreground" />
-        </div>
-        <div>
-          <p className="text-sm font-semibold leading-none">Fixo</p>
-          <p className="text-xs text-muted-foreground">Gestión de Servicios</p>
-        </div>
-      </div>
+    <>
+      <aside className="relative hidden h-full w-68 shrink-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground lg:flex">
+        <div aria-hidden className="pointer-events-none absolute -top-20 -right-24 h-56 w-56 rounded-full bg-primary opacity-30 blur-2xl" />
 
-      {/* Navigation */}
-      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        {navItems.map((item) => {
-          const isActive =
-            item.href === '/admin' || item.href === '/operario' || item.href === '/cliente'
-              ? pathname === item.href
-              : pathname.startsWith(item.href)
+        {/* Brand */}
+        <Link href={navItems[0]?.href ?? '/'} className="relative flex items-center gap-3 px-6 py-6">
+          <Image src="/logo.png" alt="" width={40} height={40} className="h-10 w-10" />
+          <div>
+            <p className="font-heading text-xl leading-none font-extrabold tracking-tight">Fixo</p>
+            <p className="mt-1 text-xs text-blue-200">Servicios de campo</p>
+          </div>
+        </Link>
+
+        {/* Navigation */}
+        <nav className="relative flex-1 space-y-1 overflow-y-auto px-3 py-2">
+          {navItems.map(({ href, label, icon: Icon }) => {
+            const active = isActive(pathname, href)
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={active ? 'page' : undefined}
+                className={cn(
+                  'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                  active
+                    ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                    : 'text-blue-100/80 hover:bg-sidebar-accent hover:text-white'
+                )}
+              >
+                <Icon size={18} strokeWidth={active ? 2.3 : 2} />
+                {label}
+              </Link>
+            )
+          })}
+        </nav>
+
+        {/* User info + logout */}
+        <div className="relative m-3 rounded-2xl bg-white/5 p-3">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-highlight text-sm font-bold text-navy">
+              {initials(fullName)}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{fullName}</p>
+              <p className="text-xs text-blue-200">{roleLabel[role]}</p>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="mt-3 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-blue-100/80 transition-colors hover:bg-red-500/15 hover:text-red-300"
+          >
+            <LogOut size={16} />
+            Cerrar sesión
+          </button>
+        </div>
+      </aside>
+
+      {/* Mobile: top bar + bottom tabs */}
+      <header className="sticky top-0 z-30 flex items-center justify-between bg-navy px-4 py-3 text-white lg:hidden">
+        <div className="flex items-center gap-2">
+          <Image src="/logo.png" alt="" width={28} height={28} className="h-7 w-7" />
+          <span className="font-heading text-lg font-extrabold">Fixo</span>
+        </div>
+        <button onClick={handleLogout} className="rounded-full p-2 text-blue-100 hover:bg-white/10" aria-label="Cerrar sesión">
+          <LogOut size={18} />
+        </button>
+      </header>
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-gray-100 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
+        {navItems.slice(0, 5).map(({ href, short, icon: Icon }) => {
+          const active = isActive(pathname, href)
           return (
             <Link
-              key={item.href}
-              href={item.href}
+              key={href}
+              href={href}
+              aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                'flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium',
+                active ? 'text-primary' : 'text-gray-400'
               )}
             >
-              {item.icon}
-              {item.label}
+              <Icon size={22} strokeWidth={active ? 2.3 : 1.8} />
+              {short}
             </Link>
           )
         })}
       </nav>
-
-      {/* User info + logout */}
-      <div className="border-t p-3">
-        <div className="mb-2 px-3 py-2">
-          <p className="truncate text-sm font-medium">{fullName}</p>
-          <p className="text-xs text-muted-foreground">{roleLabel[role]}</p>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive"
-          onClick={handleLogout}
-        >
-          <LogOut size={16} />
-          Cerrar sesión
-        </Button>
-      </div>
-    </aside>
+    </>
   )
 }
