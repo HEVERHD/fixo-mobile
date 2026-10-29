@@ -16,6 +16,8 @@ export default function RootLayout() {
   const segments = useSegments()
   const inAuthGroup = segments[0] === '(auth)'
   const onNoAccess = segments[0] === 'sin-acceso'
+  // The recovery link signs the user in; keep them here until the new password is saved
+  const onPasswordReset = inAuthGroup && (segments as string[])[1] === 'restablecer'
 
   useEffect(() => {
     // Several auth events can fire together on sign-in; only the latest lookup may set the role
@@ -71,7 +73,7 @@ export default function RootLayout() {
   }, [])
 
   useEffect(() => {
-    if (loading) return
+    if (loading || onPasswordReset) return
     if (!session) {
       // Stay on sign-up screens opened from a link (e.g. fixo://unirme?email=…)
       if (!inAuthGroup) router.replace('/(auth)/login')
@@ -83,7 +85,7 @@ export default function RootLayout() {
     } else if (!onNoAccess) {
       router.replace('/sin-acceso' as Href)
     }
-  }, [session, role, superAdmin, loading, inAuthGroup, onNoAccess])
+  }, [session, role, superAdmin, loading, inAuthGroup, onNoAccess, onPasswordReset])
 
   return (
     <KeyboardProvider>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Text } from 'react-native'
 import * as Linking from 'expo-linking'
-import { router } from 'expo-router'
+import { router, type Href } from 'expo-router'
 import { PartyPopper, Clock } from 'lucide-react-native'
 import { supabase } from '@/lib/supabase'
 import { consumeAuthLink } from '@/lib/authLinks'
@@ -28,6 +28,10 @@ export function AuthLinkHandler() {
     consumeAuthLink(url).then(async result => {
       if (result.kind === 'error') {
         setNotice({ kind: 'link-error', expired: result.code === 'otp_expired' })
+        return
+      }
+      if (result.kind === 'signed-in' && result.type === 'recovery') {
+        router.replace('/(auth)/restablecer' as Href)
         return
       }
       if (result.kind !== 'signed-in' || result.type !== 'signup') return

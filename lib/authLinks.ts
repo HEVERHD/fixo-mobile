@@ -21,8 +21,8 @@ function linkParams(url: string) {
 }
 
 /**
- * Handles Supabase auth redirects (email confirmation, later invites/recovery):
- * - implicit flow: #access_token=…&refresh_token=…&type=signup
+ * Handles Supabase auth redirects (email confirmation, password recovery):
+ * - implicit flow: #access_token=…&refresh_token=…&type=signup|recovery
  * - PKCE flow:     ?code=…
  * - failures:      #error=…&error_code=otp_expired&error_description=…
  * Returns 'none' for any other URL so normal deep links are untouched.
@@ -50,8 +50,9 @@ export async function consumeAuthLink(url: string): Promise<AuthLinkResult> {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (error) return { kind: 'error', code: error.code ?? null, description: error.message }
-    // PKCE links don't carry `type`; this app only sends signup links that way.
-    return { kind: 'signed-in', type: params.get('type') ?? 'signup' }
+    // PKCE links don't carry `type`; recovery links are told apart by their redirect path.
+    const fallbackType = url.includes('restablecer') ? 'recovery' : 'signup'
+    return { kind: 'signed-in', type: params.get('type') ?? fallbackType }
   }
 
   return { kind: 'none' }
