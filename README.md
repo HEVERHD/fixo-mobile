@@ -1,8 +1,15 @@
 # Fixo
 
-App móvil de gestión integral para **contratistas de servicios electromecánicos, mantenimiento y obras**. Una empresa contratista administra sus clientes, sus equipos (aires acondicionados, tableros eléctricos, bombas…) y su equipo técnico; los técnicos ejecutan las órdenes en campo; y los clientes consultan el estado e historial de sus equipos.
+Plataforma de gestión integral para **contratistas de servicios electromecánicos, mantenimiento y obras**. Una empresa contratista administra sus clientes, sus equipos (aires acondicionados, tableros eléctricos, bombas…) y su equipo técnico; los técnicos ejecutan las órdenes en campo; y los clientes consultan el estado e historial de sus equipos y piden servicios.
 
-Construida con **Expo (SDK 58) + Expo Router + Supabase + NativeWind**. Android e iOS desde un único código.
+Es un **monorepo** con dos apps que comparten el mismo proyecto de Supabase:
+
+| App | Carpeta | Tecnología | Para qué |
+|---|---|---|---|
+| Móvil | `apps/mobile` | Expo (SDK 58) + Expo Router + NativeWind | Administradores y técnicos en campo (Android e iOS) |
+| Web | `apps/web` | Next.js 16 + Tailwind 4 + shadcn/ui | Portal del cliente y panel web del administrador |
+
+El esquema de la base de datos vive en `supabase/migrations/` (raíz) y es el mismo para las dos.
 
 ---
 
@@ -36,13 +43,16 @@ Al iniciar sesión, la app abre el área que corresponde al rol del usuario dent
 - **Órdenes de trabajo**: crear, asignar técnico, iniciar y cerrar con reporte.
 - **Invitaciones** de técnicos y usuarios cliente, compartibles por WhatsApp. Ver [Invitaciones](#invitaciones).
 - **Panel de plataforma** para super admins.
+- **Solicitudes de servicio (lado admin, móvil)**: bandeja con contador en el inicio; aceptar crea la orden de trabajo, rechazar guarda un motivo para el cliente. Ver [Solicitudes de servicio](#solicitudes-de-servicio).
 
 ### 🚧 Próximo
 
 - Fotos de evidencia con marca de agua (fecha, hora y GPS).
 - Fichaje de entrada y salida con geolocalización en el punto de trabajo.
 - Checklists de inspección (RETIE / NTC 2050) y firma digital del cliente.
-- Solicitud de servicios desde el portal del cliente.
+- Solicitud de servicios desde el portal web del cliente (la tabla y la bandeja del admin ya existen; falta el formulario en `apps/web`).
+- Paquete compartido `packages/shared` con tipos y etiquetas comunes (estados, prioridades, solicitudes) para no duplicarlos entre las dos apps.
+- Poner la web al día con el esquema multiempresa (ver [Pendientes de la web](#pendientes-de-la-web)).
 - Animaciones Lottie (la base ya está en `components/Animation.tsx`; faltan los archivos en `assets/lottie/`).
 
 ### 📋 Después
@@ -188,6 +198,15 @@ No requieren la `service_role` key ni Edge Functions.
 - **No cambiar el dominio una vez impresos los stickers**, porque es permanente. La app igual acepta cualquier dominio con `/q/FX-…`, además de `fixo://q/…` y el código solo, para que los stickers viejos sigan funcionando.
 - La ruta `app/q/[code].tsx` usa el mismo camino `/q/…`. Cuando el dominio se conecte como universal link, el sticker abrirá la app directo en la ficha.
 
+### Solicitudes de servicio
+
+Un cliente pide un servicio desde el portal web; su empresa contratista lo acepta o rechaza desde la app móvil.
+
+1. El cliente crea la solicitud (`service_requests`, estado `nueva`) para su empresa cliente y, opcionalmente, uno de sus equipos. RLS no le deja fijar el estado, la respuesta ni la orden.
+2. El admin la ve en **Inicio → Solicitudes de clientes** (`apps/mobile/app/solicitudes.tsx`).
+3. **Aceptar** (`aceptar-solicitud/[id].tsx`): elige tipo, fecha y técnico, y llama a `accept_service_request()`. La función crea la orden y marca la solicitud como `aceptada` en una sola transacción. Es `SECURITY INVOKER`, así que aplican las políticas RLS del admin.
+4. **Rechazar**: guarda el motivo en `response`. Solo funciona si la solicitud sigue `nueva`.
+
 ### Seguridad en la base de datos
 
 - **RLS** decide *qué filas* ve y edita cada rol, siempre dentro de su empresa.
@@ -232,3 +251,26 @@ No requieren la `service_role` key ni Edge Functions.
   ```
 - **El escáner QR no funciona en el emulador:** su cámara es virtual. Prueba en un teléfono físico.
 - **`tsc` marca rutas nuevas como inválidas:** los tipos de Expo Router (`.expo/types/router.d.ts`) se regeneran al arrancar `yarn mobile`.
+- **`npx` da `Cannot find module …\node_modules\node_modules\…`:** dentro del monorepo hay que usar `yarn` (ver [Comandos](#comandos)).
+
+---
+
+## Monorepo y dependencias
+
+- **Workspaces de Yarn 1** (`apps/*`, `packages/*`). Se instala siempre desde la raíz con `yarn install`; hay **un solo `yarn.lock`**, en la raíz. No crear lockfiles por app ni usar `npm install`.
+- **Una sola versión de React** para las dos apps: `react` y `react-dom` están fijados en `19.3.0` en `resolutions` del `package.json` raíz. Dos versiones de React en la misma app rompen en tiempo de ejecución.
+- **Misma versión de TypeScript** en las dos apps (`~6.0.3`). Con versiones distintas, Yarn 1 enlaza mal los ejecutables de `node_modules/.bin`.
+- **Tailwind distinto en cada app, a propósito:** el móvil usa Tailwind 3 (lo exige NativeWind 4) y la web Tailwind 4. Yarn deja cada versión dentro de su app.
+- **Metro** (Expo SDK 58) se configura solo para monorepos; `apps/mobile/metro.config.js` no necesita `watchFolders` ni `nodeModulesPaths`.
+- **Al crear el monorepo** (octubre 2026) se instaló con `--ignore-scripts` y se verificó que el lockfile no trajera versiones distintas a las que ya usaban las dos apps. El único paquete con script de instalación es `unrs-resolver` (lo usa ESLint); no necesita correrlo porque su binario nativo llega como dependencia opcional.
+- La historia de la web viene del repo `fixo-web` (importado con `git subtree`); la del móvil, de `fixo-mobile`.
+
+---
+
+## Pendientes de la web
+
+Problemas que la web ya traía antes del monorepo:
+
+- **12 errores de TypeScript** y **1 error de lint** (más 23 avisos). `next build` pasa solo porque `apps/web/next.config.ts` tiene `typescript: { ignoreBuildErrors: true }`. Por eso `yarn typecheck` y `yarn lint` fallan hoy en la parte de la web. La solución es generar los tipos de Supabase y quitar esa opción.
+- **Esquema viejo:** `apps/web/supabase/migrations/` (`001`–`005`) es el esquema de antes de multiempresa y ya no es la fuente de verdad. La web hay que revisarla contra las migraciones de la raíz (`organization_id`, roles por empresa, RLS).
+- **Despliegue:** no puede ir a Vercel. Para GCP (Cloud Run) o Azure, el build tiene que hacerse desde la raíz del monorepo (`yarn install` + `yarn workspace @fixo/web build`).
