@@ -51,7 +51,7 @@ const dateLabel = (d: string) => format(parseISO(d), "d 'de' MMMM yyyy", { local
  * Asset sheet, same content as the app: pending from the last visit, data, QR, open orders and history.
  * RLS decides what each role sees (clients only their own assets); `mode` only changes the actions.
  */
-export async function AssetSheet({ id, mode, backHref }: { id: string; mode: 'admin' | 'cliente'; backHref: string }) {
+export async function AssetSheet({ id, mode, backHref }: { id: string; mode: 'admin' | 'operario' | 'cliente'; backHref: string }) {
   const supabase = await createClient()
   const isAdmin = mode === 'admin'
 
@@ -83,7 +83,9 @@ export async function AssetSheet({ id, mode, backHref }: { id: string; mode: 'ad
   const status = ASSET_STATUS_META[asset.status] ?? ASSET_STATUS_META.activo
   const lastVisit = visits[0]
   const brandModel = [asset.brand, asset.model].filter(Boolean).join(' ')
-  const orderHref = (orderId: string) => (isAdmin ? `/admin/ordenes/${orderId}` : null)
+  // Technicians can open any order of their company here; their detail page only acts on their own
+  const orderHref = (orderId: string) =>
+    isAdmin ? `/admin/ordenes/${orderId}` : mode === 'operario' ? `/operario/ordenes/${orderId}` : null
   // Built from our own DB code (FX-…), rendered by the qrcode library
   const svg = await qrSvg(assetLink(asset.qr_code))
 
@@ -108,7 +110,7 @@ export async function AssetSheet({ id, mode, backHref }: { id: string; mode: 'ad
 
           {/* Technical sheet */}
           <div className="grid divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-white px-4 sm:grid-cols-2 sm:divide-y-0 sm:[&>*]:border-b sm:[&>*]:border-gray-100">
-            {isAdmin && asset.clients && <InfoRow icon={Building2} label="Cliente" value={asset.clients.company_name} />}
+            {mode !== 'cliente' && asset.clients && <InfoRow icon={Building2} label="Cliente" value={asset.clients.company_name} />}
             {asset.location && <InfoRow icon={MapPin} label="Ubicación" value={asset.location} />}
             {brandModel && <InfoRow icon={Tag} label="Marca y modelo" value={brandModel} />}
             {asset.serial_number && <InfoRow icon={Tag} label="N.º de serie" value={asset.serial_number} />}
@@ -141,17 +143,19 @@ export async function AssetSheet({ id, mode, backHref }: { id: string; mode: 'ad
                 })}
               </div>
             )}
-            <div className="mt-3">
-              {isAdmin ? (
-                <PrimaryLink href={`/admin/ordenes/nueva?clientId=${asset.client_id}&assetId=${asset.id}`} icon={Plus}>
-                  Nueva orden para este equipo
-                </PrimaryLink>
-              ) : (
-                <PrimaryLink href={`/cliente/solicitar?assetId=${asset.id}`} icon={Inbox}>
-                  Solicitar servicio para este equipo
-                </PrimaryLink>
-              )}
-            </div>
+            {mode !== 'operario' && (
+              <div className="mt-3">
+                {isAdmin ? (
+                  <PrimaryLink href={`/admin/ordenes/nueva?clientId=${asset.client_id}&assetId=${asset.id}`} icon={Plus}>
+                    Nueva orden para este equipo
+                  </PrimaryLink>
+                ) : (
+                  <PrimaryLink href={`/cliente/solicitar?assetId=${asset.id}`} icon={Inbox}>
+                    Solicitar servicio para este equipo
+                  </PrimaryLink>
+                )}
+              </div>
+            )}
           </Section>
 
           {/* History */}

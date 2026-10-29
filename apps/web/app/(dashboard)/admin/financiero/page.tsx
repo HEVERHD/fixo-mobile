@@ -1,6 +1,7 @@
+import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { AlertTriangle, CalendarClock, CircleDollarSign, FileText, Plus, Receipt, Wallet, type LucideIcon } from 'lucide-react'
+import { AlertTriangle, BookOpen, CalendarClock, CircleDollarSign, FileText, Plus, Receipt, Wallet, type LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { cn } from '@/lib/utils'
 import { QUOTE_STATUS_META, money, type InvoiceStatus, type QuoteStatus } from '@/lib/finance'
@@ -54,7 +55,14 @@ export default async function FinancieroPage() {
       <PageHeader
         title="Financiero"
         subtitle="Cotizaciones y cuentas de cobro"
-        actions={<PrimaryLink href="/admin/financiero/cotizaciones/nueva" icon={Plus}>Nueva cotización</PrimaryLink>}
+        actions={
+          <>
+            <Link href="/admin/financiero/catalogo" className="inline-flex h-11 items-center gap-2 rounded-2xl bg-blue-50 px-4 text-sm font-semibold text-primary hover:bg-blue-100">
+              <BookOpen size={17} /> Catálogo APU
+            </Link>
+            <PrimaryLink href="/admin/financiero/cotizaciones/nueva" icon={Plus}>Nueva cotización</PrimaryLink>
+          </>
+        }
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -17,6 +18,8 @@ import {
   QrCode,
   Inbox,
   FileText,
+  Ellipsis,
+  ScanQrCode,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -33,6 +36,7 @@ const adminNav: NavItem[] = [
   { label: 'Órdenes de trabajo', short: 'Órdenes', href: '/admin/ordenes', icon: ClipboardList },
   { label: 'Solicitudes', short: 'Solicitudes', href: '/admin/solicitudes', icon: Inbox },
   { label: 'Equipos / QR', short: 'Equipos', href: '/admin/activos', icon: QrCode },
+  { label: 'Escanear QR', short: 'Escanear', href: '/escanear', icon: ScanQrCode },
   { label: 'Clientes', short: 'Clientes', href: '/admin/clientes', icon: Users },
   { label: 'Técnicos', short: 'Técnicos', href: '/admin/operarios', icon: UserCog },
   { label: 'Financiero', short: 'Finanzas', href: '/admin/financiero', icon: DollarSign },
@@ -40,6 +44,7 @@ const adminNav: NavItem[] = [
 
 const operarioNav: NavItem[] = [
   { label: 'Mis órdenes', short: 'Órdenes', href: '/operario', icon: ClipboardList },
+  { label: 'Escanear QR', short: 'Escanear', href: '/escanear', icon: ScanQrCode },
 ]
 
 const clienteNav: NavItem[] = [
@@ -157,24 +162,66 @@ export function Sidebar({ role, fullName }: SidebarProps) {
           <LogOut size={18} />
         </button>
       </header>
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-gray-100 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
-        {navItems.slice(0, 5).map(({ href, short, icon: Icon }) => {
+      <MobileTabs items={navItems} pathname={pathname} />
+    </>
+  )
+}
+
+const MAX_TABS = 5
+
+/** Bottom tab bar; with more than five sections the last tab opens a "Más" sheet with the rest. */
+function MobileTabs({ items, pathname }: { items: NavItem[]; pathname: string }) {
+  const [moreOpen, setMoreOpen] = useState(false)
+  const overflow = items.length > MAX_TABS
+  const tabs = overflow ? items.slice(0, MAX_TABS - 1) : items
+  const rest = overflow ? items.slice(MAX_TABS - 1) : []
+  const restActive = rest.some((i) => isActive(pathname, i.href))
+
+  const tabClass = (active: boolean) => cn(
+    'flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium',
+    active ? 'text-primary' : 'text-gray-400'
+  )
+
+  return (
+    <>
+      {moreOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Más secciones">
+          <button aria-label="Cerrar" onClick={() => setMoreOpen(false)} className="absolute inset-0 bg-navy/40" />
+          <div className="absolute inset-x-0 bottom-0 rounded-t-3xl bg-white p-4 pb-[calc(env(safe-area-inset-bottom)+5rem)]">
+            <span aria-hidden className="mx-auto mb-3 block h-1 w-10 rounded-full bg-gray-200" />
+            {rest.map(({ href, label, icon: Icon }) => {
+              const active = isActive(pathname, href)
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMoreOpen(false)}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn('flex items-center gap-3 rounded-2xl px-4 py-3.5 font-medium', active ? 'bg-blue-50 text-primary' : 'text-gray-700 hover:bg-gray-50')}
+                >
+                  <Icon size={20} /> {label}
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
+      <nav className="fixed inset-x-0 bottom-0 z-50 flex border-t border-gray-100 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
+        {tabs.map(({ href, short, icon: Icon }) => {
           const active = isActive(pathname, href)
           return (
-            <Link
-              key={href}
-              href={href}
-              aria-current={active ? 'page' : undefined}
-              className={cn(
-                'flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium',
-                active ? 'text-primary' : 'text-gray-400'
-              )}
-            >
+            <Link key={href} href={href} onClick={() => setMoreOpen(false)} aria-current={active ? 'page' : undefined} className={tabClass(active)}>
               <Icon size={22} strokeWidth={active ? 2.3 : 1.8} />
               {short}
             </Link>
           )
         })}
+        {overflow && (
+          <button type="button" onClick={() => setMoreOpen((o) => !o)} aria-expanded={moreOpen} className={tabClass(restActive || moreOpen)}>
+            <Ellipsis size={22} strokeWidth={restActive || moreOpen ? 2.3 : 1.8} />
+            Más
+          </button>
+        )}
       </nav>
     </>
   )

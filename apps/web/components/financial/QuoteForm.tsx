@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Building2, ListPlus, LoaderCircle, Plus, Search, Trash2 } from 'lucide-react'
 import { createQuote } from '@/app/(dashboard)/admin/financiero/actions'
@@ -94,7 +95,9 @@ export function QuoteForm({ clients, catalog }: { clients: { id: string; label: 
 
           {rows.length === 0 ? (
             <p className="rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm text-gray-500">
-              Agrega ítems manualmente{catalog.length > 0 && ' o desde tu catálogo APU'}.
+              {catalog.length > 0
+                ? 'Agrega ítems manualmente o desde tu catálogo APU.'
+                : <>Agrega ítems manualmente. Para tener tus precios a la mano, arma tu <Link href="/admin/financiero/catalogo" className="font-medium text-primary hover:underline">catálogo APU</Link>.</>}
             </p>
           ) : (
             <div className="space-y-3">

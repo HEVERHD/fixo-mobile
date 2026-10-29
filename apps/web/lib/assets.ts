@@ -21,6 +21,17 @@ export const assetLink = (qrCode: string) => `${ASSET_LINK_BASE}/q/${qrCode}`
 const CODE_RE = /^FX-[A-Z0-9]{6,20}$/
 export const isAssetCode = (code: string) => CODE_RE.test(code)
 
+/**
+ * Extracts the asset code from whatever a QR holds: our https link (any host, so a
+ * domain change keeps old stickers readable), fixo://q/… or the bare code. Same as the app.
+ */
+export function parseScannedCode(data: string): string | null {
+  const text = data.trim()
+  const fromPath = text.match(/\/q\/([A-Za-z0-9-]+)\/?(?:[?#].*)?$/)
+  const code = (fromPath ? fromPath[1]! : text).toUpperCase()
+  return CODE_RE.test(code) ? code : null
+}
+
 /** QR as an SVG string, for inline rendering and printed labels. */
 export function qrSvg(text: string) {
   return QRCode.toString(text, { type: 'svg', margin: 0, errorCorrectionLevel: 'M', color: { dark: '#01184e', light: '#ffffff' } })
