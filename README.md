@@ -43,14 +43,14 @@ Al iniciar sesión, la app abre el área que corresponde al rol del usuario dent
 - **Órdenes de trabajo**: crear, asignar técnico, iniciar y cerrar con reporte.
 - **Invitaciones** de técnicos y usuarios cliente, compartibles por WhatsApp. Ver [Invitaciones](#invitaciones).
 - **Panel de plataforma** para super admins.
-- **Solicitudes de servicio (lado admin, móvil)**: bandeja con contador en el inicio; aceptar crea la orden de trabajo, rechazar guarda un motivo para el cliente. Ver [Solicitudes de servicio](#solicitudes-de-servicio).
+- **Solicitudes de servicio**: el cliente las envía desde el portal web (`/cliente/solicitar`); el admin las responde en la app o en la web (`/admin/solicitudes`). Aceptar crea la orden de trabajo, rechazar guarda un motivo para el cliente. Ver [Solicitudes de servicio](#solicitudes-de-servicio).
+- **Web (`apps/web`) con el diseño de la app**: landing pública, login, panel del admin (órdenes, equipos, clientes, técnicos, invitaciones, solicitudes), vista del técnico y portal del cliente.
 
 ### 🚧 Próximo
 
 - Fotos de evidencia con marca de agua (fecha, hora y GPS).
 - Fichaje de entrada y salida con geolocalización en el punto de trabajo.
 - Checklists de inspección (RETIE / NTC 2050) y firma digital del cliente.
-- Solicitud de servicios desde el portal web del cliente (la tabla y la bandeja del admin ya existen; falta el formulario en `apps/web`).
 - Paquete compartido `packages/shared` con tipos y etiquetas comunes (estados, prioridades, solicitudes) para no duplicarlos entre las dos apps.
 - Poner la web al día con el esquema multiempresa (ver [Pendientes de la web](#pendientes-de-la-web)).
 - Animaciones Lottie (la base ya está en `components/Animation.tsx`; faltan los archivos en `assets/lottie/`).
@@ -200,10 +200,10 @@ No requieren la `service_role` key ni Edge Functions.
 
 ### Solicitudes de servicio
 
-Un cliente pide un servicio desde el portal web; su empresa contratista lo acepta o rechaza desde la app móvil.
+Un cliente pide un servicio desde el portal web; su empresa contratista lo acepta o rechaza desde la app móvil o desde la web.
 
-1. El cliente crea la solicitud (`service_requests`, estado `nueva`) para su empresa cliente y, opcionalmente, uno de sus equipos. RLS no le deja fijar el estado, la respuesta ni la orden.
-2. El admin la ve en **Inicio → Solicitudes de clientes** (`apps/mobile/app/solicitudes.tsx`).
+1. El cliente crea la solicitud (`service_requests`, estado `nueva`) en `apps/web` → **Solicitar servicio** (`/cliente/solicitar`), para su empresa cliente y, opcionalmente, uno de sus equipos. RLS no le deja fijar el estado, la respuesta ni la orden. En su inicio ve el estado y, si se rechaza, el motivo.
+2. El admin la ve en **Inicio → Solicitudes de clientes** (`apps/mobile/app/solicitudes.tsx` o `/admin/solicitudes` en la web).
 3. **Aceptar** (`aceptar-solicitud/[id].tsx`): elige tipo, fecha y técnico, y llama a `accept_service_request()`. La función crea la orden y marca la solicitud como `aceptada` en una sola transacción. Es `SECURITY INVOKER`, así que aplican las políticas RLS del admin.
 4. **Rechazar**: guarda el motivo en `response`. Solo funciona si la solicitud sigue `nueva`.
 

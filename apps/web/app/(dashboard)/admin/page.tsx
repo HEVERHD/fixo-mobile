@@ -82,9 +82,11 @@ export default async function AdminDashboard() {
           <AttentionCard pending={pendingOrders ?? 0} urgent={urgentOrders ?? 0} />
 
           {/* Client requests from the web portal */}
-          <div
+          <Link
+            href="/admin/solicitudes"
+            aria-label={`Solicitudes de clientes: ${requests} nuevas`}
             className={cn(
-              'flex items-center rounded-2xl border p-4',
+              'flex items-center rounded-2xl border p-4 transition hover:shadow-sm',
               requests > 0 ? 'border-amber-200 bg-amber-50' : 'border-gray-100 bg-white'
             )}
           >
@@ -104,7 +106,8 @@ export default async function AdminDashboard() {
                 {requests}
               </span>
             )}
-          </div>
+            <ChevronRight size={18} className="ml-2 text-gray-300" />
+          </Link>
 
           <ActionRow
             href="/admin/ordenes/nueva"

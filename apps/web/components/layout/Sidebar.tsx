@@ -15,7 +15,7 @@ import {
   DollarSign,
   LogOut,
   QrCode,
-  FileText,
+  Inbox,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -30,6 +30,7 @@ interface NavItem {
 const adminNav: NavItem[] = [
   { label: 'Inicio', short: 'Inicio', href: '/admin', icon: LayoutDashboard },
   { label: 'Órdenes de trabajo', short: 'Órdenes', href: '/admin/ordenes', icon: ClipboardList },
+  { label: 'Solicitudes', short: 'Solicitudes', href: '/admin/solicitudes', icon: Inbox },
   { label: 'Equipos / QR', short: 'Equipos', href: '/admin/activos', icon: QrCode },
   { label: 'Clientes', short: 'Clientes', href: '/admin/clientes', icon: Users },
   { label: 'Técnicos', short: 'Técnicos', href: '/admin/operarios', icon: UserCog },
@@ -43,7 +44,7 @@ const operarioNav: NavItem[] = [
 const clienteNav: NavItem[] = [
   { label: 'Resumen', short: 'Inicio', href: '/cliente', icon: LayoutDashboard },
   { label: 'Mis equipos', short: 'Equipos', href: '/cliente/activos', icon: Package },
-  { label: 'Cotizaciones', short: 'Cotizaciones', href: '/cliente/cotizaciones', icon: FileText },
+  { label: 'Solicitar servicio', short: 'Solicitar', href: '/cliente/solicitar', icon: Inbox },
 ]
 
 const navByRole: Record<Role, NavItem[]> = {

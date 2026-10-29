@@ -13,6 +13,15 @@ export async function adminClient() {
   return profile?.role === 'admin' ? supabase : null
 }
 
+/** Supabase client + client company for a signed-in portal user, or null for anyone else. */
+export async function clientContext() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data: client } = await supabase.from('clients').select('id, company_name').eq('user_id', user.id).maybeSingle()
+  return client ? { supabase, client: client as { id: string; company_name: string } } : null
+}
+
 /** Supabase client + operator id for a signed-in technician, or null for anyone else. */
 export async function operatorContext() {
   const supabase = await createClient()
