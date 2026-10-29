@@ -57,8 +57,8 @@ Al iniciar sesión, la app abre el área que corresponde al rol del usuario dent
 
 ### 📋 Después
 
-- Cotizador con APU, AIU e impuestos; PDF y aprobación digital *(las tablas `apu_catalog`, `quotes`, `quote_items` e `invoices` ya existen, sin pantallas)*.
-- Cuentas de cobro con estados (Pendiente, Abonado, Pagado, En mora) y recordatorios.
+- Cotizaciones y cuentas de cobro en la app móvil *(en la web ya están: cotizador por ítems con AIU e IVA, PDF, aprobación del cliente desde su portal y cuentas de cobro con estados)*.
+- Administrar el catálogo APU de cada empresa (hoy se usa si existe, pero no hay pantalla para llenarlo) y recordatorios de cobro.
 - Proveedores y facturas de compra vinculadas a obras.
 - Control de asistencia, cálculo de jornadas y volantes de pago.
 - Flujo de caja y notificaciones por WhatsApp.
@@ -271,8 +271,8 @@ Un cliente pide un servicio desde el portal web; su empresa contratista lo acept
 
 Problemas que la web ya traía antes del monorepo:
 
-- **12 errores de TypeScript** y **1 error de lint** (más 23 avisos). `next build` pasa solo porque `apps/web/next.config.ts` tiene `typescript: { ignoreBuildErrors: true }`. Por eso `yarn typecheck` y `yarn lint` fallan hoy en la parte de la web. La solución es generar los tipos de Supabase y quitar esa opción.
-- **Esquema viejo:** `apps/web/supabase/migrations/` (`001`–`005`) es el esquema de antes de multiempresa y ya no es la fuente de verdad. La web hay que revisarla contra las migraciones de la raíz (`organization_id`, roles por empresa, RLS).
+- **Tipos de Supabase:** la web ya pasa `yarn typecheck` y `yarn lint` sin errores y `next build` vuelve a revisar los tipos (se quitó `ignoreBuildErrors`). Las consultas usan tipos escritos a mano (`as unknown as …`); falta generar los tipos con `supabase gen types` para tener el cliente tipado.
+- **Esquema viejo:** `apps/web/supabase/migrations/` (`001`–`005`) es el esquema de antes de multiempresa y ya no es la fuente de verdad (la web ya se revisó contra las migraciones de la raíz). Solo sirve como referencia de las tablas financieras, que se crearon con `005_financial.sql`; conviene moverlas a la migración base pendiente.
 - **Despliegue:** no puede ir a Vercel. Para GCP (Cloud Run) o Azure, el build tiene que hacerse desde la raíz del monorepo (`yarn install` + `yarn workspace @fixo/web build`).
 - **Variables de la web** (además de las de Supabase):
   - `NEXT_PUBLIC_SITE_URL`: URL pública de la web. Se usa en el enlace de confirmación del correo (`<url>/login?confirmado=1`) y en el enlace web de las invitaciones (`<url>/unirme?email=…`). Esa URL de confirmación debe estar en Supabase → Authentication → URL Configuration → Redirect URLs.

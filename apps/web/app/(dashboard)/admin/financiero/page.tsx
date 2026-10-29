@@ -1,160 +1,138 @@
+import { format, parseISO } from 'date-fns'
+import { es } from 'date-fns/locale'
+import { AlertTriangle, CalendarClock, CircleDollarSign, FileText, Plus, Receipt, Wallet, type LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { FileText, DollarSign, Plus, AlertCircle } from 'lucide-react'
-import Link from 'next/link'
+import { cn } from '@/lib/utils'
+import { QUOTE_STATUS_META, money, type InvoiceStatus, type QuoteStatus } from '@/lib/finance'
+import { CardLink, Chip, EmptyState, MetaRow, PageHeader, PrimaryLink, Section } from '@/components/app/ui'
+import { InvoiceStatusSelect } from '@/components/financial/InvoiceStatusSelect'
+
+interface QuoteRow {
+  id: string
+  quote_number: string
+  total: number
+  status: QuoteStatus
+  created_at: string
+  clients: { company_name: string } | null
+}
+
+interface InvoiceRow {
+  id: string
+  invoice_number: string
+  amount: number
+  status: InvoiceStatus
+  due_date: string | null
+  clients: { company_name: string } | null
+}
 
 export default async function FinancieroPage() {
   const supabase = await createClient()
 
-  const [{ data: quotes }, { data: invoices }] = await Promise.all([
+  const [{ data: q }, { data: i }] = await Promise.all([
     supabase
       .from('quotes')
       .select('id, quote_number, total, status, created_at, clients(company_name)')
       .order('created_at', { ascending: false })
-      .limit(10),
+      .limit(30),
     supabase
       .from('invoices')
       .select('id, invoice_number, amount, status, due_date, clients(company_name)')
       .order('created_at', { ascending: false })
-      .limit(10),
+      .limit(100),
   ])
+  const quotes = (q ?? []) as unknown as QuoteRow[]
+  const invoices = (i ?? []) as unknown as InvoiceRow[]
 
-  const totalPending = invoices
-    ?.filter((i) => i.status === 'pendiente' || i.status === 'abonado')
-    .reduce((acc, i) => acc + Number(i.amount), 0) ?? 0
-
-  const totalCollected = invoices
-    ?.filter((i) => i.status === 'pagado')
-    .reduce((acc, i) => acc + Number(i.amount), 0) ?? 0
-
-  const invoiceStatusColor: Record<string, string> = {
-    pendiente: 'bg-yellow-50 text-yellow-700',
-    abonado: 'bg-blue-50 text-blue-700',
-    pagado: 'bg-green-50 text-green-700',
-    en_mora: 'bg-red-50 text-red-700',
-  }
-
-  const quoteStatusVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-    borrador: 'outline',
-    enviada: 'secondary',
-    aprobada: 'default',
-    rechazada: 'destructive',
-  }
+  const sum = (rows: InvoiceRow[]) => rows.reduce((acc, r) => acc + Number(r.amount), 0)
+  const receivable = sum(invoices.filter((r) => r.status !== 'pagado'))
+  const overdue = sum(invoices.filter((r) => r.status === 'en_mora'))
+  const collected = sum(invoices.filter((r) => r.status === 'pagado'))
+  const awaiting = quotes.filter((r) => r.status === 'enviada').length
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Módulo Financiero</h1>
-          <p className="text-muted-foreground">Cotizaciones y cuentas de cobro</p>
-        </div>
-        <Link href="/admin/financiero/cotizaciones/nueva">
-          <Button><Plus size={16} className="mr-2" /> Nueva Cotización</Button>
-        </Link>
+    <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-10">
+      <PageHeader
+        title="Financiero"
+        subtitle="Cotizaciones y cuentas de cobro"
+        actions={<PrimaryLink href="/admin/financiero/cotizaciones/nueva" icon={Plus}>Nueva cotización</PrimaryLink>}
+      />
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat icon={Wallet} label="Por cobrar" value={money(receivable)} tint="bg-amber-100 text-amber-600" />
+        <Stat icon={AlertTriangle} label="En mora" value={money(overdue)} tint="bg-red-100 text-red-600" />
+        <Stat icon={CircleDollarSign} label="Recaudado" value={money(collected)} tint="bg-green-100 text-green-600" />
+        <Stat icon={FileText} label="Cotizaciones por responder" value={String(awaiting)} tint="bg-blue-100 text-primary" />
       </div>
 
-      {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Por cobrar</CardTitle>
-            <AlertCircle className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-yellow-600">
-              ${totalPending.toLocaleString('es-CO')}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Recaudado</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-green-600">
-              ${totalCollected.toLocaleString('es-CO')}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Cotizaciones</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{quotes?.length ?? 0}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Quotes */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-base">Cotizaciones recientes</CardTitle>
-            <Link href="/admin/financiero/cotizaciones/nueva" className="text-sm text-primary hover:underline">
-              Nueva
-            </Link>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {quotes && quotes.length > 0 ? (
-              quotes.map((q) => (
-                <Link key={q.id} href={`/admin/financiero/cotizaciones/${q.id}`}>
-                  <div className="flex items-center justify-between rounded-md border p-3 hover:bg-accent cursor-pointer">
-                    <div>
-                      <p className="text-sm font-medium">{q.quote_number}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {(q.clients as { company_name: string } | null)?.company_name}
-                      </p>
+      <div className="mt-8 grid gap-8 lg:grid-cols-2">
+        <Section title="Cotizaciones">
+          {quotes.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title="Aún no tienes cotizaciones"
+              action={<PrimaryLink href="/admin/financiero/cotizaciones/nueva" icon={Plus}>Crear cotización</PrimaryLink>}
+            />
+          ) : (
+            <div className="space-y-3">
+              {quotes.map((quote) => {
+                const meta = QUOTE_STATUS_META[quote.status] ?? QUOTE_STATUS_META.borrador
+                return (
+                  <CardLink key={quote.id} href={`/admin/financiero/cotizaciones/${quote.id}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-mono text-sm font-semibold text-gray-900">{quote.quote_number}</p>
+                      <Chip className={meta.chip}>{meta.label}</Chip>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold">${Number(q.total).toLocaleString('es-CO')}</p>
-                      <Badge variant={quoteStatusVariant[q.status]} className="text-xs">{q.status}</Badge>
+                    <div className="mt-1 flex items-end justify-between gap-2">
+                      <p className="truncate text-sm text-gray-500">{quote.clients?.company_name ?? '—'}</p>
+                      <p className="font-heading shrink-0 text-lg font-bold text-gray-900">{money(quote.total)}</p>
                     </div>
-                  </div>
-                </Link>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">No hay cotizaciones.</p>
-            )}
-          </CardContent>
-        </Card>
+                  </CardLink>
+                )
+              })}
+            </div>
+          )}
+        </Section>
 
-        {/* Invoices */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-base">Cuentas de cobro</CardTitle>
-            <Link href="/admin/financiero/facturas" className="text-sm text-primary hover:underline">
-              Ver todas
-            </Link>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {invoices && invoices.length > 0 ? (
-              invoices.map((inv) => (
-                <div key={inv.id} className="flex items-center justify-between rounded-md border p-3">
-                  <div>
-                    <p className="text-sm font-medium">{inv.invoice_number}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(inv.clients as { company_name: string } | null)?.company_name}
-                    </p>
+        <Section title="Cuentas de cobro">
+          {invoices.length === 0 ? (
+            <EmptyState icon={Receipt} title="Aún no tienes cuentas de cobro" message="Se crean desde una cotización aprobada." />
+          ) : (
+            <div className="divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-white">
+              {invoices.map((inv) => (
+                <div key={inv.id} className="px-4 py-3.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-mono text-sm font-semibold text-gray-900">{inv.invoice_number}</p>
+                    <InvoiceStatusSelect id={inv.id} status={inv.status} />
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold">${Number(inv.amount).toLocaleString('es-CO')}</p>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${invoiceStatusColor[inv.status]}`}>
-                      {inv.status}
-                    </span>
+                  <div className="mt-1 flex items-end justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm text-gray-500">{inv.clients?.company_name ?? '—'}</p>
+                      {inv.due_date && inv.status !== 'pagado' && (
+                        <MetaRow icon={CalendarClock} className={cn(inv.status === 'en_mora' && 'text-red-600')}>
+                          Vence el {format(parseISO(inv.due_date), "d 'de' MMMM yyyy", { locale: es })}
+                        </MetaRow>
+                      )}
+                    </div>
+                    <p className="font-heading shrink-0 text-lg font-bold text-gray-900">{money(inv.amount)}</p>
                   </div>
                 </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">No hay cuentas de cobro.</p>
-            )}
-          </CardContent>
-        </Card>
+              ))}
+            </div>
+          )}
+        </Section>
       </div>
+    </div>
+  )
+}
+
+function Stat({ icon: Icon, label, value, tint }: { icon: LucideIcon; label: string; value: string; tint: string }) {
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-white p-4">
+      <span className={cn('flex h-10 w-10 items-center justify-center rounded-xl', tint)}>
+        <Icon size={20} />
+      </span>
+      <p className="font-heading mt-3 truncate text-2xl font-bold text-gray-900">{value}</p>
+      <p className="mt-0.5 text-sm text-gray-500">{label}</p>
     </div>
   )
 }

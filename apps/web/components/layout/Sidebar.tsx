@@ -16,6 +16,7 @@ import {
   LogOut,
   QrCode,
   Inbox,
+  FileText,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -45,6 +46,7 @@ const clienteNav: NavItem[] = [
   { label: 'Resumen', short: 'Inicio', href: '/cliente', icon: LayoutDashboard },
   { label: 'Mis equipos', short: 'Equipos', href: '/cliente/activos', icon: Package },
   { label: 'Solicitar servicio', short: 'Solicitar', href: '/cliente/solicitar', icon: Inbox },
+  { label: 'Cotizaciones', short: 'Cotizaciones', href: '/cliente/cotizaciones', icon: FileText },
 ]
 
 const navByRole: Record<Role, NavItem[]> = {
