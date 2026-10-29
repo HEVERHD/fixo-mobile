@@ -155,7 +155,7 @@ export default async function AdminDashboard() {
             {features.equipos && (
               <KPICard label="Equipos" value={totalAssets ?? 0} icon={Package} tint="bg-green-100 text-green-600" href="/admin/activos" />
             )}
-            <KPICard label="Clientes" value={totalClients ?? 0} icon={Building2} tint="bg-purple-100 text-purple-600" />
+            <KPICard label="Clientes" value={totalClients ?? 0} icon={Building2} tint="bg-purple-100 text-purple-600" href="/admin/clientes" />
           </div>
         </section>
       </div>
