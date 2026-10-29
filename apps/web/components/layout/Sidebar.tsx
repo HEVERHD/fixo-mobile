@@ -38,7 +38,6 @@ const adminNav: NavItem[] = [
 
 const operarioNav: NavItem[] = [
   { label: 'Mis órdenes', short: 'Órdenes', href: '/operario', icon: ClipboardList },
-  { label: 'Equipos', short: 'Equipos', href: '/operario/activos', icon: Package },
 ]
 
 const clienteNav: NavItem[] = [

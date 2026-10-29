@@ -12,3 +12,12 @@ export async function adminClient() {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   return profile?.role === 'admin' ? supabase : null
 }
+
+/** Supabase client + operator id for a signed-in technician, or null for anyone else. */
+export async function operatorContext() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data: op } = await supabase.from('operators').select('id').eq('user_id', user.id).maybeSingle()
+  return op ? { supabase, operatorId: op.id as string } : null
+}
