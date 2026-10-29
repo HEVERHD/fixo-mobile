@@ -43,22 +43,22 @@ Al iniciar sesión, la app abre el área que corresponde al rol del usuario dent
 - **Órdenes de trabajo**: crear, asignar técnico, iniciar y cerrar con reporte.
 - **Invitaciones** de técnicos y usuarios cliente, compartibles por WhatsApp. Ver [Invitaciones](#invitaciones).
 - **Panel de plataforma** para super admins.
-- **Solicitudes de servicio (lado admin, móvil)**: bandeja con contador en el inicio; aceptar crea la orden de trabajo, rechazar guarda un motivo para el cliente. Ver [Solicitudes de servicio](#solicitudes-de-servicio).
+- **Solicitudes de servicio**: el cliente las envía desde el portal web (`/cliente/solicitar`); el admin las responde en la app o en la web (`/admin/solicitudes`). Aceptar crea la orden de trabajo, rechazar guarda un motivo para el cliente. Ver [Solicitudes de servicio](#solicitudes-de-servicio).
+- **Web (`apps/web`) con el diseño de la app**: landing pública, login, panel del admin (órdenes, equipos, clientes, técnicos, invitaciones, solicitudes), vista del técnico y portal del cliente.
 
 ### 🚧 Próximo
 
 - Fotos de evidencia con marca de agua (fecha, hora y GPS).
 - Fichaje de entrada y salida con geolocalización en el punto de trabajo.
 - Checklists de inspección (RETIE / NTC 2050) y firma digital del cliente.
-- Solicitud de servicios desde el portal web del cliente (la tabla y la bandeja del admin ya existen; falta el formulario en `apps/web`).
 - Paquete compartido `packages/shared` con tipos y etiquetas comunes (estados, prioridades, solicitudes) para no duplicarlos entre las dos apps.
 - Poner la web al día con el esquema multiempresa (ver [Pendientes de la web](#pendientes-de-la-web)).
 - Animaciones Lottie (la base ya está en `components/Animation.tsx`; faltan los archivos en `assets/lottie/`).
 
 ### 📋 Después
 
-- Cotizador con APU, AIU e impuestos; PDF y aprobación digital *(las tablas `apu_catalog`, `quotes`, `quote_items` e `invoices` ya existen, sin pantallas)*.
-- Cuentas de cobro con estados (Pendiente, Abonado, Pagado, En mora) y recordatorios.
+- Cotizaciones y cuentas de cobro en la app móvil *(en la web ya están: cotizador por ítems con AIU e IVA, PDF, aprobación del cliente desde su portal y cuentas de cobro con estados)*.
+- Administrar el catálogo APU de cada empresa (hoy se usa si existe, pero no hay pantalla para llenarlo) y recordatorios de cobro.
 - Proveedores y facturas de compra vinculadas a obras.
 - Control de asistencia, cálculo de jornadas y volantes de pago.
 - Flujo de caja y notificaciones por WhatsApp.
@@ -200,10 +200,10 @@ No requieren la `service_role` key ni Edge Functions.
 
 ### Solicitudes de servicio
 
-Un cliente pide un servicio desde el portal web; su empresa contratista lo acepta o rechaza desde la app móvil.
+Un cliente pide un servicio desde el portal web; su empresa contratista lo acepta o rechaza desde la app móvil o desde la web.
 
-1. El cliente crea la solicitud (`service_requests`, estado `nueva`) para su empresa cliente y, opcionalmente, uno de sus equipos. RLS no le deja fijar el estado, la respuesta ni la orden.
-2. El admin la ve en **Inicio → Solicitudes de clientes** (`apps/mobile/app/solicitudes.tsx`).
+1. El cliente crea la solicitud (`service_requests`, estado `nueva`) en `apps/web` → **Solicitar servicio** (`/cliente/solicitar`), para su empresa cliente y, opcionalmente, uno de sus equipos. RLS no le deja fijar el estado, la respuesta ni la orden. En su inicio ve el estado y, si se rechaza, el motivo.
+2. El admin la ve en **Inicio → Solicitudes de clientes** (`apps/mobile/app/solicitudes.tsx` o `/admin/solicitudes` en la web).
 3. **Aceptar** (`aceptar-solicitud/[id].tsx`): elige tipo, fecha y técnico, y llama a `accept_service_request()`. La función crea la orden y marca la solicitud como `aceptada` en una sola transacción. Es `SECURITY INVOKER`, así que aplican las políticas RLS del admin.
 4. **Rechazar**: guarda el motivo en `response`. Solo funciona si la solicitud sigue `nueva`.
 
@@ -271,6 +271,9 @@ Un cliente pide un servicio desde el portal web; su empresa contratista lo acept
 
 Problemas que la web ya traía antes del monorepo:
 
-- **12 errores de TypeScript** y **1 error de lint** (más 23 avisos). `next build` pasa solo porque `apps/web/next.config.ts` tiene `typescript: { ignoreBuildErrors: true }`. Por eso `yarn typecheck` y `yarn lint` fallan hoy en la parte de la web. La solución es generar los tipos de Supabase y quitar esa opción.
-- **Esquema viejo:** `apps/web/supabase/migrations/` (`001`–`005`) es el esquema de antes de multiempresa y ya no es la fuente de verdad. La web hay que revisarla contra las migraciones de la raíz (`organization_id`, roles por empresa, RLS).
+- **Tipos de Supabase:** la web ya pasa `yarn typecheck` y `yarn lint` sin errores y `next build` vuelve a revisar los tipos (se quitó `ignoreBuildErrors`). Las consultas usan tipos escritos a mano (`as unknown as …`); falta generar los tipos con `supabase gen types` para tener el cliente tipado.
+- **Esquema viejo:** `apps/web/supabase/migrations/` (`001`–`005`) es el esquema de antes de multiempresa y ya no es la fuente de verdad (la web ya se revisó contra las migraciones de la raíz). Solo sirve como referencia de las tablas financieras, que se crearon con `005_financial.sql`; conviene moverlas a la migración base pendiente.
 - **Despliegue:** no puede ir a Vercel. Para GCP (Cloud Run) o Azure, el build tiene que hacerse desde la raíz del monorepo (`yarn install` + `yarn workspace @fixo/web build`).
+- **Variables de la web** (además de las de Supabase):
+  - `NEXT_PUBLIC_SITE_URL`: URL pública de la web. Se usa en el enlace de confirmación del correo (`<url>/login?confirmado=1`) y en el enlace web de las invitaciones (`<url>/unirme?email=…`). Esa URL de confirmación debe estar en Supabase → Authentication → URL Configuration → Redirect URLs.
+  - `NEXT_PUBLIC_ASSET_LINK_BASE`: dominio de los stickers QR (`<base>/q/<código>`). Debe ser el mismo valor que `EXPO_PUBLIC_ASSET_LINK_BASE` de la app; por defecto `https://fixo.co`.

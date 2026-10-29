@@ -13,7 +13,9 @@ export function ShareInvitation({
 }: { invitation: { email: string; role: InviteRole; full_name: string | null }; orgName: string; className?: string }) {
   const [copied, setCopied] = useState(false)
   const canShare = useSyncExternalStore(noop, () => typeof navigator.share === 'function', () => false)
-  const message = invitationMessage(invitation, orgName)
+  // This page's own origin, so the link works on whatever domain the web is deployed
+  const origin = useSyncExternalStore(noop, () => window.location.origin, () => '')
+  const message = invitationMessage(invitation, orgName, process.env.NEXT_PUBLIC_SITE_URL || origin)
 
   async function copy() {
     try {

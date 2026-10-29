@@ -22,5 +22,10 @@ export default async function QrCodePage({ params }: PageProps<'/q/[code]'>) {
   ])
   if (!asset) notFound()
 
-  redirect(profile?.role === 'admin' ? `/admin/activos/${asset.id}` : `/qr/${asset.id}`)
+  const sheet: Record<string, string> = {
+    admin: `/admin/activos/${asset.id}`,
+    operario: `/operario/activos/${asset.id}`,
+    cliente: `/cliente/activos/${asset.id}`,
+  }
+  redirect(sheet[profile?.role ?? ''] ?? `/qr/${asset.id}`)
 }

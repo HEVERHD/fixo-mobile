@@ -1,247 +1,104 @@
-'use client'
-
-import { useState, useEffect } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useRouter, useParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { maintenanceRecordSchema, type MaintenanceRecordInput } from '@/lib/validations/order.schema'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, MapPin, Upload, CheckCircle2 } from 'lucide-react'
-import Link from 'next/link'
-import type { WorkOrder } from '@/types/database.types'
-import { format } from 'date-fns'
+import { notFound } from 'next/navigation'
+import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { Building2, CalendarDays, HardHat, MapPin, Package, Phone, TriangleAlert } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { cn } from '@/lib/utils'
+import { STATUS_META, type WorkOrderPriority, type WorkOrderStatus, type WorkOrderType } from '@/lib/workOrders'
+import { Chip, InfoRow, PageHeader } from '@/components/app/ui'
+import { OrderReport, OrderSummary, Steps, latestReport, type Report } from '@/components/orders/OrderParts'
+import { CompleteOrderForm, StartOrderButton } from '@/components/orders/OperatorOrderActions'
 
-export default function OperarioOrdenDetailPage() {
-  const params = useParams()
-  const router = useRouter()
-  const supabase = createClient()
-  const [order, setOrder] = useState<WorkOrder & {
-    clients?: { company_name: string }
-    assets?: { id: string; name: string; location: string | null; type: string }
-  } | null>(null)
-  const [operator, setOperator] = useState<{ id: string } | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [photos, setPhotos] = useState<string[]>([])
-  const [submitted, setSubmitted] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+interface OrderDetail {
+  id: string
+  order_number: string
+  description: string
+  status: WorkOrderStatus
+  priority: WorkOrderPriority
+  type: WorkOrderType
+  scheduled_date: string | null
+  asset_id: string | null
+  clients: { company_name: string; address: string | null; contact_phone: string | null } | null
+  assets: { name: string; location: string | null } | null
+  projects: { name: string } | null
+  maintenance_records: Report[]
+}
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<MaintenanceRecordInput>({ resolver: zodResolver(maintenanceRecordSchema) })
+const SELECT = `
+  id, order_number, description, status, priority, type, scheduled_date, asset_id,
+  clients(company_name, address, contact_phone),
+  assets(name, location),
+  projects(name),
+  maintenance_records(id, date, tasks_performed, observations, pending_tasks)
+`
 
-  useEffect(() => {
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const { data: op } = await supabase.from('operators').select('id').eq('user_id', user.id).single()
-      setOperator(op)
+export default async function OperarioOrderPage({ params }: PageProps<'/operario/ordenes/[id]'>) {
+  const { id } = await params
+  const supabase = await createClient()
 
-      const { data: ord } = await supabase
-        .from('work_orders')
-        .select('*, clients(company_name), assets(id, name, location, type)')
-        .eq('id', params.id as string)
-        .single()
-      if (ord) setOrder(ord as typeof order)
-    }
-    load()
-  }, [params.id])
+  const { data } = await supabase.from('work_orders').select(SELECT).eq('id', id).maybeSingle()
+  if (!data) notFound()
+  const order = data as unknown as OrderDetail
 
-  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files
-    if (!files || !files.length) return
-    setUploading(true)
-    const uploaded: string[] = []
-    for (const file of Array.from(files)) {
-      const path = `maintenance/${params.id}/${Date.now()}-${file.name}`
-      const { error } = await supabase.storage.from('field-photos').upload(path, file)
-      if (!error) {
-        const { data } = supabase.storage.from('field-photos').getPublicUrl(path)
-        uploaded.push(data.publicUrl)
-      }
-    }
-    setPhotos((prev) => [...prev, ...uploaded])
-    setUploading(false)
-  }
+  // What was left pending on this asset's last visit: the first thing the technician needs on site
+  const { data: last } = order.asset_id
+    ? await supabase
+        .from('maintenance_records')
+        .select('date, pending_tasks')
+        .eq('asset_id', order.asset_id)
+        .neq('work_order_id', order.id)
+        .order('date', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    : { data: null }
 
-  async function onSubmit(data: MaintenanceRecordInput) {
-    if (!operator || !order) return
-    setError(null)
-
-    // Create maintenance record
-    const { error: recErr } = await supabase.from('maintenance_records').insert({
-      work_order_id: order.id,
-      asset_id: order.asset_id!,
-      operator_id: operator.id,
-      tasks_performed: data.tasks_performed,
-      observations: data.observations || null,
-      pending_tasks: data.pending_tasks || null,
-      photos,
-    })
-
-    if (recErr) { setError(recErr.message); return }
-
-    // Update order status to completada
-    await supabase
-      .from('work_orders')
-      .update({ status: 'completada', completed_date: new Date().toISOString().split('T')[0] })
-      .eq('id', order.id)
-
-    setSubmitted(true)
-  }
-
-  if (submitted) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 p-6">
-        <CheckCircle2 className="h-16 w-16 text-green-500" />
-        <h2 className="text-xl font-bold">Reporte enviado</h2>
-        <p className="text-muted-foreground">La orden fue marcada como completada.</p>
-        <Link href="/operario">
-          <Button>Volver a Mis Órdenes</Button>
-        </Link>
-      </div>
-    )
-  }
-
-  if (!order) {
-    return <div className="p-6 text-muted-foreground">Cargando orden...</div>
-  }
-
-  const priorityColor: Record<string, string> = {
-    baja: 'secondary', media: 'outline', alta: 'default', urgente: 'destructive',
-  }
+  const status = STATUS_META[order.status] ?? STATUS_META.pendiente
 
   return (
-    <div className="p-6 max-w-xl space-y-4">
-      <div className="flex items-center gap-3">
-        <Link href="/operario">
-          <Button variant="ghost" size="sm"><ArrowLeft size={16} className="mr-1" /> Volver</Button>
-        </Link>
-        <div>
-          <h1 className="text-xl font-bold">{order.order_number}</h1>
-          <p className="text-sm text-muted-foreground">{order.clients?.company_name}</p>
-        </div>
-      </div>
+    <div className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-10">
+      <PageHeader
+        backHref="/operario"
+        title={order.order_number}
+        subtitle={order.clients?.company_name}
+        actions={<Chip className={cn('px-3 text-sm', status.chip, status.text)}>{status.label}</Chip>}
+      />
 
-      {/* Order Info */}
-      <Card>
-        <CardContent className="pt-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <Badge variant={priorityColor[order.priority] as 'default' | 'secondary' | 'destructive' | 'outline'}>
-              {order.priority}
-            </Badge>
-            <Badge variant="outline" className="capitalize">{order.type}</Badge>
-          </div>
-          <p className="text-sm">{order.description}</p>
-          {order.assets && (
-            <div className="rounded-md border p-3 text-sm space-y-1">
-              <p className="font-medium">{order.assets.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">{order.assets.type}</p>
-              {order.assets.location && (
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <MapPin size={11} /> {order.assets.location}
-                </div>
-              )}
-            </div>
-          )}
-          {order.scheduled_date && (
-            <p className="text-xs text-muted-foreground">
-              Programada: {format(new Date(order.scheduled_date), "d 'de' MMMM yyyy", { locale: es })}
+      <div className="space-y-5">
+        {last?.pending_tasks && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-amber-900">
+              <TriangleAlert size={16} className="text-amber-700" /> Quedó pendiente en la última visita
             </p>
+            <p className="text-sm whitespace-pre-line text-amber-900">{last.pending_tasks}</p>
+            <p className="mt-2 text-xs text-amber-700">{format(parseISO(last.date), "d 'de' MMMM yyyy", { locale: es })}</p>
+          </div>
+        )}
+
+        <OrderSummary type={order.type} priority={order.priority} description={order.description} />
+        <Steps status={order.status} />
+
+        {order.status === 'pendiente' && <StartOrderButton orderId={order.id} size="lg" />}
+        {order.status === 'en_proceso' && <CompleteOrderForm orderId={order.id} orderNumber={order.order_number} />}
+
+        <div className="divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-white px-4">
+          {order.clients && <InfoRow icon={Building2} label="Cliente" value={order.clients.company_name} />}
+          {order.clients?.address && <InfoRow icon={MapPin} label="Dirección" value={order.clients.address} />}
+          {order.clients?.contact_phone && (
+            <InfoRow icon={Phone} label="Teléfono" value={order.clients.contact_phone} href={`tel:${order.clients.contact_phone}`} />
           )}
-        </CardContent>
-      </Card>
+          {order.projects && <InfoRow icon={HardHat} label="Obra" value={order.projects.name} />}
+          {order.assets && (
+            <InfoRow icon={Package} label="Equipo" value={order.assets.name + (order.assets.location ? ` · ${order.assets.location}` : '')} />
+          )}
+          <InfoRow
+            icon={CalendarDays}
+            label="Programada"
+            value={order.scheduled_date ? format(parseISO(order.scheduled_date), "EEEE d 'de' MMMM yyyy", { locale: es }) : 'Sin fecha'}
+          />
+        </div>
 
-      {/* Report Form */}
-      {order.status !== 'completada' && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Reporte de Servicio</CardTitle></CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="space-y-1">
-                <Label>Tareas realizadas *</Label>
-                <Textarea
-                  placeholder="Describe detalladamente las tareas ejecutadas..."
-                  rows={4}
-                  {...register('tasks_performed')}
-                />
-                {errors.tasks_performed && (
-                  <p className="text-sm text-destructive">{errors.tasks_performed.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-1">
-                <Label>Observaciones</Label>
-                <Textarea
-                  placeholder="Estado del equipo, anomalías encontradas..."
-                  rows={2}
-                  {...register('observations')}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label>Tareas pendientes</Label>
-                <Textarea
-                  placeholder="Trabajos que quedaron pendientes para la próxima visita..."
-                  rows={2}
-                  {...register('pending_tasks')}
-                />
-              </div>
-
-              {/* Photo Upload */}
-              <div className="space-y-2">
-                <Label>Fotos de evidencia</Label>
-                <label className="flex cursor-pointer flex-col items-center gap-2 rounded-md border-2 border-dashed p-4 hover:bg-accent">
-                  <Upload size={20} className="text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    {uploading ? 'Subiendo...' : 'Toca para agregar fotos'}
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={handlePhotoUpload}
-                    disabled={uploading}
-                  />
-                </label>
-                {photos.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2">
-                    {photos.map((url, i) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img key={i} src={url} alt={`foto-${i}`} className="h-20 w-full rounded-md object-cover" />
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {error && (
-                <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>
-              )}
-
-              <Button type="submit" className="w-full" disabled={isSubmitting || uploading}>
-                {isSubmitting ? 'Enviando...' : 'Completar Orden y Enviar Reporte'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      {order.status === 'completada' && (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-2 py-6">
-            <CheckCircle2 className="h-10 w-10 text-green-500" />
-            <p className="font-medium">Orden completada</p>
-          </CardContent>
-        </Card>
-      )}
+        <OrderReport report={latestReport(order.maintenance_records)} status={order.status} />
+      </div>
     </div>
   )
 }

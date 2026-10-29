@@ -1,116 +1,76 @@
 'use client'
 
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { registerSchema, type RegisterInput } from '@/lib/validations/auth.schema'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Zap } from 'lucide-react'
+import { Building2, LockKeyhole, Mail, UserRound } from 'lucide-react'
+import { registerCompany } from '@/app/(auth)/register/actions'
+import type { RegisterInput } from '@/lib/validations/auth.schema'
+import type { BusinessType } from '@/lib/workOrders'
+import { AuthShell } from '@/components/auth/AuthShell'
+import { AuthField } from '@/components/auth/AuthField'
+import { AltLink, BusinessTypePicker, CheckEmail, SubmitButton } from '@/components/auth/SignUpParts'
+
+type Errors = Partial<Record<keyof RegisterInput, string>>
 
 export function RegisterForm() {
   const router = useRouter()
-  const supabase = createClient()
-  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+  const [form, setForm] = useState({ organization_name: '', full_name: '', email: '', password: '' })
+  const [businessType, setBusinessType] = useState<BusinessType | null>(null)
+  const [errors, setErrors] = useState<Errors>({})
+  const [formError, setFormError] = useState<string | null>(null)
+  const [sentTo, setSentTo] = useState<string | null>(null)
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<RegisterInput>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: { role: 'cliente' },
+  const field = (key: keyof typeof form) => ({
+    value: form[key],
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      setForm((f) => ({ ...f, [key]: e.target.value }))
+      setErrors((x) => ({ ...x, [key]: undefined }))
+    },
+    error: errors[key],
   })
 
-  async function onSubmit(data: RegisterInput) {
-    setError(null)
-    const { error } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
-      options: {
-        data: { full_name: data.full_name, role: data.role },
-      },
+  function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setFormError(null)
+    startTransition(async () => {
+      const result = await registerCompany({ ...form, business_type: businessType as BusinessType })
+      if (!result.ok) {
+        setErrors(result.fieldErrors ?? {})
+        if (!result.fieldErrors) setFormError(result.error)
+        return
+      }
+      if (result.needsConfirmation) setSentTo(result.email)
+      else {
+        router.replace('/admin')
+        router.refresh()
+      }
     })
-    if (error) {
-      setError(error.message)
-      return
-    }
-    router.push('/login?registered=true')
+  }
+
+  if (sentTo) {
+    return (
+      <AuthShell title="Revisa tu correo" subtitle="Ya casi terminamos.">
+        <CheckEmail email={sentTo} note="Ábrelo para activar tu cuenta y luego inicia sesión." />
+      </AuthShell>
+    )
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary">
-            <Zap className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <CardTitle className="text-2xl">Crear cuenta</CardTitle>
-          <CardDescription>Fixo — Registro de usuario</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-1">
-              <Label htmlFor="full_name">Nombre completo</Label>
-              <Input id="full_name" placeholder="Juan Pérez" {...register('full_name')} />
-              {errors.full_name && (
-                <p className="text-sm text-destructive">{errors.full_name.message}</p>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="email">Correo electrónico</Label>
-              <Input id="email" type="email" placeholder="usuario@empresa.com" {...register('email')} />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input id="password" type="password" placeholder="••••••••" {...register('password')} />
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password.message}</p>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label>Rol</Label>
-              <Select onValueChange={(v) => setValue('role', v as RegisterInput['role'])} defaultValue="cliente">
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un rol" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Administrador</SelectItem>
-                  <SelectItem value="operario">Operario / Técnico</SelectItem>
-                  <SelectItem value="cliente">Cliente</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {error && (
-              <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>
-            )}
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? 'Registrando...' : 'Crear cuenta'}
-            </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              ¿Ya tienes cuenta?{' '}
-              <a href="/login" className="text-primary underline">
-                Ingresar
-              </a>
-            </p>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthShell title="Registra tu empresa" subtitle="Crea la cuenta de tu empresa. Serás su administrador.">
+      <form onSubmit={submit} noValidate>
+        <div className="space-y-5">
+          <AuthField id="organization_name" label="Nombre de la empresa" icon={Building2} placeholder="Ej.: Servicios Técnicos S.A.S." autoComplete="organization" {...field('organization_name')} />
+          <BusinessTypePicker value={businessType} onChange={(v) => { setBusinessType(v); setErrors((x) => ({ ...x, business_type: undefined })) }} error={errors.business_type} />
+          <AuthField id="full_name" label="Tu nombre" icon={UserRound} placeholder="Nombre y apellido" autoComplete="name" {...field('full_name')} />
+          <AuthField id="email" label="Correo electrónico" icon={Mail} type="email" placeholder="tu@empresa.com" autoComplete="email" {...field('email')} />
+          <AuthField id="password" label="Contraseña" icon={LockKeyhole} type="password" placeholder="Mínimo 8 caracteres" autoComplete="new-password" {...field('password')} />
+        </div>
+        {formError && <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-3 text-sm text-red-700">{formError}</p>}
+        <SubmitButton pending={pending} label="Crear empresa" />
+      </form>
+      <AltLink text="¿Ya tienes cuenta?" href="/login" label="Inicia sesión" />
+      <AltLink text="¿Te invitó tu empresa?" href="/unirme" label="Crea tu cuenta aquí" />
+    </AuthShell>
   )
 }
