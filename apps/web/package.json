@@ -1,5 +1,5 @@
 {
-  "name": "fixo",
+  "name": "@fixo/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -19,7 +19,7 @@
     "cn": "^0.5.0",
     "date-fns": "^4.4.0",
     "html5-qrcode": "^2.3.8",
-    "lucide-react": "^1.63.0",
+    "lucide-react": "1.63.0",
     "next": "16.4.3",
     "next-themes": "^0.4.6",
     "qrcode": "^1.5.4",
@@ -40,6 +40,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "~6.0.3"
   }
 }

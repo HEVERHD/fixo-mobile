@@ -66,8 +66,10 @@ Al iniciar sesión, la app abre el área que corresponde al rol del usuario dent
 ### 1. Variables de entorno
 
 ```bash
-cp .env.example .env.local
+cp apps/mobile/.env.example apps/mobile/.env.local
 ```
+
+La web usa su propio `apps/web/.env.local` con `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`, del mismo proyecto de Supabase.
 
 Completa los valores en Supabase Dashboard → Project Settings → API. **`.env.local` nunca se commitea.** Solo va la `anon key`, que es pública por diseño: la seguridad la da RLS. La `service_role` key nunca va en la app.
 
@@ -98,24 +100,36 @@ Las migraciones se aplican **a mano, en orden**, desde Supabase → SQL Editor. 
 - **Authentication → URL Configuration → Redirect URLs**: agregar `fixo://**` y, en desarrollo, la URL `exp://…` que muestra Expo.
 - El correo por defecto de Supabase **solo envía a miembros del equipo del proyecto** y a pocos correos por hora. Antes de tener usuarios reales hay que configurar un SMTP propio (Resend, SendGrid…).
 
-### 4. Correr la app
+### 4. Correr las apps
+
+Desde la raíz del repo:
 
 ```bash
-yarn install
-npx expo start        # luego "a" para Android o escanear el QR con Expo Go
-npx expo start -c     # igual, limpiando la caché (después de instalar dependencias)
+yarn install          # instala las dos apps (un solo yarn.lock en la raíz)
+yarn mobile           # app móvil: luego "a" para Android o escanear el QR con Expo Go
+yarn web              # web en http://localhost:3000
 ```
 
 ---
 
 ## Comandos
 
+Es un monorepo con workspaces de Yarn. Usa siempre `yarn`: **`npx` falla dentro del monorepo** porque resuelve mal los ejecutables locales.
+
+Desde la raíz:
+
 ```bash
-npx expo start          # servidor de desarrollo
-npx expo lint           # lint
-npx tsc --noEmit        # typecheck
-npx expo-doctor         # diagnóstico de dependencias y configuración
-npx expo install <pkg>  # SIEMPRE así para agregar paquetes (versiones compatibles con el SDK)
+yarn lint               # lint de las dos apps
+yarn typecheck          # typecheck de las dos apps
+```
+
+Dentro de `apps/mobile`:
+
+```bash
+yarn expo start         # servidor de desarrollo
+yarn expo start -c      # igual, limpiando la caché (después de instalar dependencias)
+yarn expo-doctor        # diagnóstico de dependencias y configuración
+yarn expo install <pkg> # SIEMPRE así para agregar paquetes (versiones compatibles con el SDK)
 ```
 
 Lint y typecheck deben pasar antes de dar una tarea por terminada.
@@ -123,6 +137,15 @@ Lint y typecheck deben pasar antes de dar una tarea por terminada.
 ---
 
 ## Estructura
+
+```
+apps/mobile/            App móvil (Expo)
+apps/web/               App web (Next.js): portal del cliente y panel web
+supabase/migrations/    SQL versionado del esquema y RLS (lo usan las dos apps)
+supabase/seed/          Datos de prueba
+```
+
+Dentro de `apps/mobile/`:
 
 ```
 app/                    Rutas (Expo Router): cada archivo es una pantalla
@@ -139,8 +162,6 @@ app/                    Rutas (Expo Router): cada archivo es una pantalla
   nueva-*.tsx, nuevo-*.tsx, invitar.tsx   Formularios (modales)
 components/             Componentes compartidos (TextField, SelectField, AppModal, Animation…)
 lib/                    Lógica sin UI: cliente de Supabase, dominios (assets, invitations, workOrders…)
-supabase/migrations/    SQL versionado del esquema y RLS
-supabase/seed/          Datos de prueba
 assets/                 Íconos, splash y animaciones (assets/lottie/)
 ```
 
@@ -191,7 +212,7 @@ No requieren la `service_role` key ni Edge Functions.
 - **Animaciones:** archivos `.lottie` en `assets/lottie/`, registrados en `lib/animations.ts` y reproducidos con `<Animation>`. Siempre llevan un `fallback` estático (si falta el archivo o el usuario activó "reducir movimiento").
 - **Expo cambia en cada SDK:** antes de usar una API de Expo, revisa la documentación de la versión instalada (`https://docs.expo.dev/versions/v58.0.0/`), no la memoria.
 - **Dependencias** (política de la organización):
-  - instalar con `npx expo install`, y las dependencias nuevas con **versión fija** (sin `^` ni `~`);
+  - instalar con `yarn expo install` (en la app móvil), y las dependencias nuevas con **versión fija** (sin `^` ni `~`);
   - antes de agregar un paquete, revisar sus scripts `preinstall`, `install` y `postinstall`, su historial en Socket.dev, Snyk o GitHub Advisories, y preferir versiones con al menos dos semanas de publicadas;
   - correr `yarn audit` como mínimo una vez al mes;
   - ante un paquete comprometido, **rotar** los tokens de npm y GitHub y las credenciales cloud, no solo desinstalarlo.
@@ -210,4 +231,4 @@ No requieren la `service_role` key ni Edge Functions.
   where email = 'correo@ejemplo.com' and email_confirmed_at is null;
   ```
 - **El escáner QR no funciona en el emulador:** su cámara es virtual. Prueba en un teléfono físico.
-- **`tsc` marca rutas nuevas como inválidas:** los tipos de Expo Router (`.expo/types/router.d.ts`) se regeneran al arrancar `npx expo start`.
+- **`tsc` marca rutas nuevas como inválidas:** los tipos de Expo Router (`.expo/types/router.d.ts`) se regeneran al arrancar `yarn mobile`.
