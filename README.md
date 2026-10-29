@@ -83,6 +83,7 @@ Las migraciones se aplican **a mano, en orden**, desde Supabase → SQL Editor. 
 | `20261028150000_platform_delete_organization.sql` | Eliminar empresas con auditoría |
 | `20261028160000_work_reports.sql` | Reportes para órdenes sin equipo |
 | `20261028170000_invitations.sql` | Invitaciones y código QR por defecto en equipos |
+| `20261029100000_service_requests.sql` | Solicitudes de servicio de los clientes (portal web) y `accept_service_request()` para convertirlas en órdenes |
 
 > ⚠️ **Falta la migración base.** La primera migración modifica tablas (`profiles`, `clients`, `operators`, `assets`, `work_orders`, `maintenance_records`, `apu_catalog`, `quotes`, `quote_items`, `invoices`) que se crearon directamente en Supabase. Hoy no se puede recrear la base de datos desde el repo. Pendiente: `supabase db dump --schema public` y guardarlo como `20261028000000_baseline.sql`.
 

@@ -4,23 +4,18 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { router, useLocalSearchParams } from 'expo-router'
-import { addDays, format } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { X, Building2, Package, HardHat, FileText, ClipboardCheck } from 'lucide-react-native'
 import { supabase } from '@/lib/supabase'
-import { PRIORITY_LABEL, TYPE_LABEL, type WorkOrderPriority, type WorkOrderType } from '@/lib/workOrders'
+import {
+  PRIORITY_LABEL, TYPE_LABEL, dateChoiceOptions, scheduledDateFor,
+  type DateChoice, type WorkOrderPriority, type WorkOrderType,
+} from '@/lib/workOrders'
 import { fetchMyOrganization, featuresFor } from '@/lib/organization'
 import { TextField } from '@/components/TextField'
 import { SelectField, type SelectOption } from '@/components/SelectField'
 import { ChipGroup } from '@/components/ChipGroup'
 import { PrimaryButton } from '@/components/AuthLayout'
 import { AppModal } from '@/components/AppModal'
-
-type DateChoice = 'hoy' | 'manana' | '3dias' | 'semana' | 'ninguna'
-
-const DATE_OFFSETS: Record<DateChoice, number | null> = {
-  hoy: 0, manana: 1, '3dias': 3, semana: 7, ninguna: null,
-}
 
 const PRIORITY_ACTIVE: Record<WorkOrderPriority, string> = {
   baja: 'bg-gray-500 border-gray-500',
@@ -87,17 +82,7 @@ export default function NuevaOrden() {
     [projects, clientId],
   )
 
-  const dateOptions = useMemo(() => {
-    const today = new Date()
-    const label = (offset: number, text: string) => `${text} · ${format(addDays(today, offset), 'd MMM', { locale: es })}`
-    return [
-      { value: 'hoy' as const, label: label(0, 'Hoy') },
-      { value: 'manana' as const, label: label(1, 'Mañana') },
-      { value: '3dias' as const, label: label(3, 'En 3 días') },
-      { value: 'semana' as const, label: label(7, 'En 1 semana') },
-      { value: 'ninguna' as const, label: 'Sin fecha' },
-    ]
-  }, [])
+  const dateOptions = useMemo(() => dateChoiceOptions(), [])
 
   function selectClient(id: string | null) {
     setClientId(id)
@@ -114,7 +99,6 @@ export default function NuevaOrden() {
     setErrors(next)
     if (Object.keys(next).length) return
 
-    const offset = DATE_OFFSETS[date]
     setSaving(true)
     // organization_id defaults to the admin's org; order_number comes from a DB trigger
     const { data, error } = await supabase
@@ -127,7 +111,7 @@ export default function NuevaOrden() {
         type,
         priority,
         description: description.trim(),
-        scheduled_date: offset === null ? null : format(addDays(new Date(), offset), 'yyyy-MM-dd'),
+        scheduled_date: scheduledDateFor(date),
       })
       .select('order_number')
       .single()

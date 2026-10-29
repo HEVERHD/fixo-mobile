@@ -98,6 +98,7 @@ export default function RootLayout() {
           <Stack.Screen name="nuevo-cliente" options={{ presentation: 'modal' }} />
           <Stack.Screen name="nuevo-equipo" options={{ presentation: 'modal' }} />
           <Stack.Screen name="invitar" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="aceptar-solicitud/[id]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="escanear" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
         </Stack>
         {/* Email-confirmation deep links: auto sign-in + welcome modal */}

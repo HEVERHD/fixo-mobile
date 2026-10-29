@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar'
 import { router, useFocusEffect, type Href } from 'expo-router'
 import {
   ClipboardList, Wrench, Package, Building2, ChevronRight, FileText,
-  CheckCheck, Zap, ArrowRight, Plus, HardHat, type LucideIcon,
+  CheckCheck, Zap, ArrowRight, Plus, HardHat, Inbox, type LucideIcon,
 } from 'lucide-react-native'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -25,6 +25,7 @@ interface Stats {
   totalAssets: number
   totalClients: number
   activeProjects: number
+  newRequests: number
 }
 
 interface ActiveProject {
@@ -71,6 +72,7 @@ export default function AdminDashboard() {
       { data: recentOrders },
       { count: activeProjects },
       { data: activeProjectList },
+      { count: newRequests },
     ] = await Promise.all([
       supabase.from('work_orders').select('*', count),
       supabase.from('work_orders').select('*', count).eq('status', 'pendiente'),
@@ -90,6 +92,7 @@ export default function AdminDashboard() {
         .eq('status', 'en_ejecucion')
         .order('created_at', { ascending: false })
         .limit(3),
+      supabase.from('service_requests').select('*', count).eq('status', 'nueva'),
     ])
     setStats({
       totalOrders: totalOrders ?? 0,
@@ -99,6 +102,7 @@ export default function AdminDashboard() {
       totalAssets: totalAssets ?? 0,
       totalClients: totalClients ?? 0,
       activeProjects: activeProjects ?? 0,
+      newRequests: newRequests ?? 0,
     })
     setRecent((recentOrders ?? []) as unknown as RecentOrder[])
     setProjects((activeProjectList ?? []) as unknown as ActiveProject[])
@@ -159,6 +163,35 @@ export default function AdminDashboard() {
           urgent={stats.urgentOrders}
           onPress={() => go('/(admin)/ordenes')}
         />
+
+        {/* Client requests from the web portal */}
+        <TouchableOpacity
+          onPress={() => go('/solicitudes' as Href)}
+          activeOpacity={0.8}
+          className={`flex-row items-center rounded-2xl p-4 mt-3 border ${
+            stats.newRequests > 0 ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100'
+          }`}
+          accessibilityRole="button"
+          accessibilityLabel={`Solicitudes de clientes: ${stats.newRequests} nuevas`}
+        >
+          <View className={`w-10 h-10 rounded-xl items-center justify-center ${stats.newRequests > 0 ? 'bg-amber-500' : 'bg-gray-100'}`}>
+            <Inbox size={20} color={stats.newRequests > 0 ? '#fff' : '#6b7280'} strokeWidth={2.2} />
+          </View>
+          <View className="flex-1 ml-3">
+            <Text className="font-semibold text-gray-900">Solicitudes de clientes</Text>
+            <Text className="text-xs text-gray-500">
+              {stats.newRequests === 0
+                ? 'Sin solicitudes nuevas'
+                : stats.newRequests === 1 ? '1 solicitud por responder' : `${stats.newRequests} solicitudes por responder`}
+            </Text>
+          </View>
+          {stats.newRequests > 0 && (
+            <View className="min-w-6 h-6 px-1.5 rounded-full bg-amber-500 items-center justify-center mr-2">
+              <Text className="text-xs font-bold text-white">{stats.newRequests}</Text>
+            </View>
+          )}
+          <ChevronRight size={18} color="#d1d5db" />
+        </TouchableOpacity>
 
         {/* Quick action */}
         <TouchableOpacity
