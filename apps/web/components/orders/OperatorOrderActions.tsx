@@ -6,6 +6,7 @@ import { CircleCheckBig, FileText, LoaderCircle, Play, TriangleAlert, Wrench } f
 import { completeOrder, startOrder, type ReportInput } from '@/app/(dashboard)/operario/ordenes/[id]/actions'
 import { Field, inputClass } from '@/components/app/form'
 import { cn } from '@/lib/utils'
+import { PhotoUploader, type UploadedPhoto } from '@/components/orders/PhotoUploader'
 
 /** Big, easy-to-hit "Iniciar" button (cards on the list and the order detail). */
 export function StartOrderButton({ orderId, size = 'md' }: { orderId: string; size?: 'md' | 'lg' }) {
@@ -41,10 +42,11 @@ export function StartOrderButton({ orderId, size = 'md' }: { orderId: string; si
 }
 
 /** Report form that closes the order (the app's "Completar trabajo" screen). */
-export function CompleteOrderForm({ orderId, orderNumber }: { orderId: string; orderNumber: string }) {
+export function CompleteOrderForm({ orderId, orderNumber, orgId }: { orderId: string; orderNumber: string; orgId: string }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
-  const [form, setForm] = useState<ReportInput>({ tasks_performed: '', observations: '', pending_tasks: '' })
+  const [form, setForm] = useState<Required<Omit<ReportInput, 'photos'>>>({ tasks_performed: '', observations: '', pending_tasks: '' })
+  const [photos, setPhotos] = useState<UploadedPhoto[]>([])
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
 
@@ -56,7 +58,7 @@ export function CompleteOrderForm({ orderId, orderNumber }: { orderId: string; o
     }
     setError(null)
     startTransition(async () => {
-      const result = await completeOrder(orderId, form)
+      const result = await completeOrder(orderId, { ...form, photos: photos.map((p) => p.path) })
       if (result.ok) {
         setDone(true)
         router.refresh()
@@ -79,7 +81,7 @@ export function CompleteOrderForm({ orderId, orderNumber }: { orderId: string; o
     )
   }
 
-  const area = (key: keyof ReportInput, label: string, icon: React.ReactNode, placeholder: string, optional?: boolean) => (
+  const area = (key: keyof typeof form, label: string, icon: React.ReactNode, placeholder: string, optional?: boolean) => (
     <Field id={key} label={label} optional={optional} error={key === 'tasks_performed' ? error ?? undefined : undefined}>
       <div className="relative">
         <span className="pointer-events-none absolute top-3.5 left-3.5 text-gray-400">{icon}</span>
@@ -102,6 +104,7 @@ export function CompleteOrderForm({ orderId, orderNumber }: { orderId: string; o
       {area('observations', 'Observaciones', <FileText size={16} />, 'Estado en que quedó el equipo, recomendaciones…', true)}
       {area('pending_tasks', '¿Quedó algo pendiente?', <TriangleAlert size={16} />, 'Ej.: falta cambiar el filtro, no había repuesto.', true)}
       <p className="text-xs text-gray-500">Lo pendiente quedará visible en la próxima visita a este cliente o equipo.</p>
+      <PhotoUploader orgId={orgId} orderId={orderId} photos={photos} onChange={setPhotos} />
       {error && form.tasks_performed.trim().length >= 5 && (
         <p role="alert" className="rounded-2xl bg-red-50 p-3 text-sm text-red-700">{error}</p>
       )}

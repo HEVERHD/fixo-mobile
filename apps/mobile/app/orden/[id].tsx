@@ -16,6 +16,11 @@ import {
   type WorkOrderStatus, type WorkOrderPriority, type WorkOrderType,
 } from '@/lib/workOrders'
 import { SelectField, type SelectOption } from '@/components/SelectField'
+import { PhotoGrid } from '@/components/PhotoStrip'
+import { signPhotoUrls } from '@/lib/photos'
+
+const latestReport = (reports: Report[] | null | undefined) =>
+  [...(reports ?? [])].sort((a, b) => b.date.localeCompare(a.date))[0]
 
 interface Report {
   id: string
@@ -23,6 +28,7 @@ interface Report {
   tasks_performed: string
   observations: string | null
   pending_tasks: string | null
+  photos: string[] | null
 }
 
 interface OrderDetail {
@@ -50,7 +56,7 @@ const SELECT = `
   assets(name, location),
   projects(name),
   operators(profiles(full_name)),
-  maintenance_records(id, date, tasks_performed, observations, pending_tasks)
+  maintenance_records(id, date, tasks_performed, observations, pending_tasks, photos)
 `
 
 export default function OrderDetailScreen() {
@@ -61,6 +67,7 @@ export default function OrderDetailScreen() {
   const [operators, setOperators] = useState<SelectOption[]>([])
   const [notFound, setNotFound] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [photoUrls, setPhotoUrls] = useState<string[]>([])
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -73,6 +80,8 @@ export default function OrderDetailScreen() {
     setRole(myRole)
     setOrder(data as unknown as OrderDetail | null)
     setNotFound(!data)
+    const latest = latestReport((data as unknown as OrderDetail | null)?.maintenance_records)
+    setPhotoUrls(await signPhotoUrls(latest?.photos ?? []))
 
     if (myRole === 'admin') {
       const { data: ops } = await supabase.from('operators').select('id, specialty, profiles(full_name)')
@@ -124,7 +133,7 @@ export default function OrderDetailScreen() {
   }
 
   const status = STATUS_META[order.status]
-  const report = [...(order.maintenance_records ?? [])].sort((a, b) => b.date.localeCompare(a.date))[0]
+  const report = latestReport(order.maintenance_records)
   const longDate = (d: string) => format(parseISO(d), "EEEE d 'de' MMMM yyyy", { locale: es })
   const isOpen = order.status === 'pendiente' || order.status === 'en_proceso'
 
@@ -229,6 +238,11 @@ export default function OrderDetailScreen() {
             {report.observations && <ReportBlock icon={FileCheck2} title="Observaciones" text={report.observations} />}
             {report.pending_tasks && (
               <ReportBlock icon={TriangleAlert} title="Quedó pendiente" text={report.pending_tasks} warn />
+            )}
+            {photoUrls.length > 0 && (
+              <View className="mt-3">
+                <PhotoGrid urls={photoUrls} />
+              </View>
             )}
           </View>
         ) : order.status === 'completada' ? (

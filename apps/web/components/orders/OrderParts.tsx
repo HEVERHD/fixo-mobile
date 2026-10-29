@@ -7,6 +7,16 @@ import {
   type WorkOrderPriority, type WorkOrderStatus, type WorkOrderType,
 } from '@/lib/workOrders'
 import { Chip, Section } from '@/components/app/ui'
+import { PhotoGallery } from '@/components/orders/PhotoGallery'
+import { signPhotoUrls } from '@/lib/photos'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+/** Signed URLs for a report's photos, in order (server only). */
+export async function reportPhotoUrls(supabase: SupabaseClient, report: Report | undefined) {
+  const paths = report?.photos ?? []
+  const signed = await signPhotoUrls(supabase, paths)
+  return paths.map((p) => signed[p]).filter(Boolean)
+}
 
 export interface Report {
   id: string
@@ -14,6 +24,7 @@ export interface Report {
   tasks_performed: string
   observations: string | null
   pending_tasks: string | null
+  photos: string[] | null
 }
 
 /** Most recent report of an order, if any. */
@@ -74,7 +85,7 @@ export function Steps({ status }: { status: WorkOrderStatus }) {
 }
 
 /** The technician's report, or a note when an order was completed without one. */
-export function OrderReport({ report, status }: { report: Report | undefined; status: WorkOrderStatus }) {
+export function OrderReport({ report, status, photoUrls = [] }: { report: Report | undefined; status: WorkOrderStatus; photoUrls?: string[] }) {
   if (!report) {
     return status === 'completada'
       ? <p className="text-center text-sm text-gray-500">Esta orden se completó sin reporte.</p>
@@ -94,6 +105,7 @@ export function OrderReport({ report, status }: { report: Report | undefined; st
         <ReportBlock icon={Wrench} title="Trabajo realizado" text={report.tasks_performed} />
         {report.observations && <ReportBlock icon={FileCheck2} title="Observaciones" text={report.observations} />}
         {report.pending_tasks && <ReportBlock icon={TriangleAlert} title="Quedó pendiente" text={report.pending_tasks} warn />}
+        <PhotoGallery urls={photoUrls} className="mt-3" />
       </div>
     </Section>
   )

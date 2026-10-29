@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { cn } from '@/lib/utils'
 import { STATUS_META, type WorkOrderPriority, type WorkOrderStatus, type WorkOrderType } from '@/lib/workOrders'
 import { Chip, InfoRow, PageHeader } from '@/components/app/ui'
-import { OrderReport, OrderSummary, Steps, latestReport, type Report } from '@/components/orders/OrderParts'
+import { OrderReport, OrderSummary, Steps, latestReport, reportPhotoUrls, type Report } from '@/components/orders/OrderParts'
 import { CompleteOrderForm, StartOrderButton } from '@/components/orders/OperatorOrderActions'
 
 interface OrderDetail {
@@ -29,7 +29,7 @@ const SELECT = `
   clients(company_name, address, contact_phone),
   assets(name, location),
   projects(name),
-  maintenance_records(id, date, tasks_performed, observations, pending_tasks)
+  maintenance_records(id, date, tasks_performed, observations, pending_tasks, photos)
 `
 
 export default async function OperarioOrderPage({ params }: PageProps<'/operario/ordenes/[id]'>) {
@@ -53,6 +53,10 @@ export default async function OperarioOrderPage({ params }: PageProps<'/operario
     : { data: null }
 
   const status = STATUS_META[order.status] ?? STATUS_META.pendiente
+  const report = latestReport(order.maintenance_records)
+  const [photoUrls, { data: { user } }] = await Promise.all([reportPhotoUrls(supabase, report), supabase.auth.getUser()])
+  // Company folder for uploads (Storage RLS checks it again)
+  const { data: op } = await supabase.from('operators').select('organization_id').eq('user_id', user?.id ?? '').maybeSingle()
 
   return (
     <div className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-10">
@@ -78,7 +82,9 @@ export default async function OperarioOrderPage({ params }: PageProps<'/operario
         <Steps status={order.status} />
 
         {order.status === 'pendiente' && <StartOrderButton orderId={order.id} size="lg" />}
-        {order.status === 'en_proceso' && <CompleteOrderForm orderId={order.id} orderNumber={order.order_number} />}
+        {order.status === 'en_proceso' && op && (
+          <CompleteOrderForm orderId={order.id} orderNumber={order.order_number} orgId={op.organization_id} />
+        )}
 
         <div className="divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-white px-4">
           {order.clients && <InfoRow icon={Building2} label="Cliente" value={order.clients.company_name} />}
@@ -97,7 +103,7 @@ export default async function OperarioOrderPage({ params }: PageProps<'/operario
           />
         </div>
 
-        <OrderReport report={latestReport(order.maintenance_records)} status={order.status} />
+        <OrderReport report={report} status={order.status} photoUrls={photoUrls} />
       </div>
     </div>
   )

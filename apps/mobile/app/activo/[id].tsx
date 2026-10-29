@@ -16,6 +16,8 @@ import { ASSET_STATUS_META, assetLink, printAssetLabels, type AssetStatus } from
 import { STATUS_META, type WorkOrderStatus } from '@/lib/workOrders'
 import { QrCode } from '@/components/QrCode'
 import { EmptyState } from '@/components/ui'
+import { PhotoGrid } from '@/components/PhotoStrip'
+import { signPhotoUrls } from '@/lib/photos'
 
 interface AssetDetail {
   id: string
@@ -37,6 +39,7 @@ interface Visit {
   tasks_performed: string
   observations: string | null
   pending_tasks: string | null
+  photos: string[] | null
   operators: { profiles: { full_name: string } | null } | null
   work_orders: { order_number: string } | null
 }
@@ -65,6 +68,7 @@ export default function ActivoDetalle() {
   const [role, setRole] = useState<Role | null>(null)
   const [missing, setMissing] = useState(false)
   const [printing, setPrinting] = useState(false)
+  const [visitPhotos, setVisitPhotos] = useState<Record<string, string[]>>({})
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -75,7 +79,7 @@ export default function ActivoDetalle() {
         .select('id, name, type, brand, model, location, status, installation_date, qr_code, client_id, clients(company_name, address)')
         .eq('id', id).maybeSingle(),
       supabase.from('maintenance_records')
-        .select('id, date, tasks_performed, observations, pending_tasks, operators(profiles(full_name)), work_orders(order_number)')
+        .select('id, date, tasks_performed, observations, pending_tasks, photos, operators(profiles(full_name)), work_orders(order_number)')
         .eq('asset_id', id).order('date', { ascending: false }).limit(20),
       supabase.from('work_orders')
         .select('id, order_number, description, status')
@@ -84,8 +88,12 @@ export default function ActivoDetalle() {
     setRole((profile?.role as Role) ?? null)
     setAsset(a as unknown as AssetDetail | null)
     setMissing(!a)
-    setVisits((v ?? []) as unknown as Visit[])
+    const visitRows = (v ?? []) as unknown as Visit[]
+    setVisits(visitRows)
     setOrders((o ?? []) as OpenOrder[])
+    // Signed one by one so each visit keeps its own photos in order
+    const signed = await Promise.all(visitRows.map(row => signPhotoUrls(row.photos ?? [])))
+    setVisitPhotos(Object.fromEntries(visitRows.map((row, i) => [row.id, signed[i] ?? []])))
   }, [id])
 
   useFocusEffect(useCallback(() => { load() }, [load]))
@@ -256,6 +264,11 @@ export default function ActivoDetalle() {
                   <VisitLine icon={Wrench} text={v.tasks_performed} />
                   {v.observations && <VisitLine icon={ClipboardList} text={v.observations} muted />}
                   {v.pending_tasks && <VisitLine icon={TriangleAlert} text={v.pending_tasks} warn />}
+                  {(visitPhotos[v.id]?.length ?? 0) > 0 && (
+                    <View className="mt-3">
+                      <PhotoGrid urls={visitPhotos[v.id]!} />
+                    </View>
+                  )}
                   {v.operators?.profiles?.full_name && (
                     <View className="flex-row items-center mt-2">
                       <HardHat size={13} color="#9ca3af" />

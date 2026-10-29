@@ -27,6 +27,6 @@ export async function operatorContext() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
-  const { data: op } = await supabase.from('operators').select('id').eq('user_id', user.id).maybeSingle()
-  return op ? { supabase, operatorId: op.id as string } : null
+  const { data: op } = await supabase.from('operators').select('id, organization_id').eq('user_id', user.id).maybeSingle()
+  return op ? { supabase, operatorId: op.id as string, orgId: op.organization_id as string } : null
 }

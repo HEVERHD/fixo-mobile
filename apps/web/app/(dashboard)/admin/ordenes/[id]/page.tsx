@@ -11,7 +11,7 @@ import {
 } from '@/lib/workOrders'
 import { Chip, InfoRow, PageHeader } from '@/components/app/ui'
 import { OrderAdminActions, type OperatorOption } from '@/components/orders/OrderAdminActions'
-import { OrderReport, OrderSummary, Steps, latestReport, type Report } from '@/components/orders/OrderParts'
+import { OrderReport, OrderSummary, Steps, latestReport, reportPhotoUrls, type Report } from '@/components/orders/OrderParts'
 
 interface OrderDetail {
   id: string
@@ -38,7 +38,7 @@ const SELECT = `
   assets(name, location),
   projects(name),
   operators(profiles(full_name)),
-  maintenance_records(id, date, tasks_performed, observations, pending_tasks)
+  maintenance_records(id, date, tasks_performed, observations, pending_tasks, photos)
 `
 
 const longDate = (d: string) => format(parseISO(d), "EEEE d 'de' MMMM yyyy", { locale: es })
@@ -59,6 +59,8 @@ export default async function OrderDetailPage({ params }: PageProps<'/admin/orde
 
   const status = STATUS_META[order.status] ?? STATUS_META.pendiente
   const isOpen = OPEN_STATUSES.includes(order.status)
+  const report = latestReport(order.maintenance_records)
+  const photoUrls = await reportPhotoUrls(supabase, report)
 
   return (
     <div className="mx-auto max-w-5xl p-4 sm:p-6 lg:p-10">
@@ -73,7 +75,7 @@ export default async function OrderDetailPage({ params }: PageProps<'/admin/orde
         <div className="space-y-6">
           <OrderSummary type={order.type} priority={order.priority} description={order.description} />
           <Steps status={order.status} />
-          <OrderReport report={latestReport(order.maintenance_records)} status={order.status} />
+          <OrderReport report={report} status={order.status} photoUrls={photoUrls} />
         </div>
 
         <div className="space-y-6">

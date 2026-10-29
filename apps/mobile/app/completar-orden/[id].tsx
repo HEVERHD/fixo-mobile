@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabase'
 import { TextField } from '@/components/TextField'
 import { PrimaryButton } from '@/components/AuthLayout'
 import { AppModal } from '@/components/AppModal'
+import { AddPhotoButtons, PhotoGrid } from '@/components/PhotoStrip'
+import { MAX_PHOTOS, pickPhotos, removeWorkPhoto, uploadWorkPhoto } from '@/lib/photos'
 
 /**
  * Operator closes a work order: writes the report (maintenance_records) and
@@ -21,6 +23,10 @@ export default function CompletarOrden() {
   const [orderNumber, setOrderNumber] = useState('')
   const [assetId, setAssetId] = useState<string | null>(null)
   const [operatorId, setOperatorId] = useState<string | null>(null)
+  const [orgId, setOrgId] = useState<string | null>(null)
+  // Uploaded right away; the paths go with the report (local uri only for the preview)
+  const [photos, setPhotos] = useState<{ path: string; uri: string }[]>([])
+  const [uploading, setUploading] = useState(false)
 
   const [tasks, setTasks] = useState('')
   const [observations, setObservations] = useState('')
@@ -34,13 +40,43 @@ export default function CompletarOrden() {
       const { data: { user } } = await supabase.auth.getUser()
       const [{ data: order }, { data: op }] = await Promise.all([
         supabase.from('work_orders').select('order_number, asset_id').eq('id', id).single(),
-        supabase.from('operators').select('id').eq('user_id', user?.id ?? '').maybeSingle(),
+        supabase.from('operators').select('id, organization_id').eq('user_id', user?.id ?? '').maybeSingle(),
       ])
       setOrderNumber(order?.order_number ?? '')
       setAssetId(order?.asset_id ?? null)
       setOperatorId(op?.id ?? null)
+      setOrgId(op?.organization_id ?? null)
     })()
   }, [id])
+
+  async function addPhotos(source: 'camera' | 'library') {
+    if (!orgId) return
+    const picked = await pickPhotos(source, MAX_PHOTOS - photos.length)
+    if (!picked.ok) {
+      if (picked.reason === 'permission') {
+        Alert.alert('Sin acceso a la cámara', 'Permite el acceso a la cámara en los ajustes del teléfono para tomar fotos.')
+      }
+      return
+    }
+    setUploading(true)
+    const added: { path: string; uri: string }[] = []
+    for (const asset of picked.assets) {
+      const path = await uploadWorkPhoto(orgId, id, asset)
+      if (path) added.push({ path, uri: asset.uri })
+    }
+    setUploading(false)
+    setPhotos(p => [...p, ...added])
+    if (added.length < picked.assets.length) {
+      Alert.alert('Algunas fotos no se subieron', 'Revisa tu conexión e inténtalo de nuevo.')
+    }
+  }
+
+  function removePhoto(index: number) {
+    const photo = photos[index]
+    if (!photo) return
+    setPhotos(p => p.filter((_, i) => i !== index))
+    removeWorkPhoto(photo.path)
+  }
 
   async function submit() {
     if (tasks.trim().length < 5) {
@@ -60,6 +96,7 @@ export default function CompletarOrden() {
       tasks_performed: tasks.trim(),
       observations: observations.trim() || null,
       pending_tasks: pending.trim() || null,
+      photos: photos.map(p => p.path),
     })
     if (reportError) {
       setSaving(false)
@@ -124,7 +161,22 @@ export default function CompletarOrden() {
           Lo pendiente quedará visible en la próxima visita a este cliente o equipo.
         </Text>
 
-        <PrimaryButton label="Completar orden" onPress={submit} loading={saving} className="mt-2" />
+        <View className="gap-3">
+          <Text className="text-sm font-medium text-gray-700">
+            Fotos de evidencia <Text className="font-normal text-gray-400">(opcional, máximo {MAX_PHOTOS})</Text>
+          </Text>
+          <PhotoGrid urls={photos.map(p => p.uri)} onRemove={removePhoto} />
+          {photos.length < MAX_PHOTOS && (
+            <AddPhotoButtons
+              onCamera={() => addPhotos('camera')}
+              onLibrary={() => addPhotos('library')}
+              busy={uploading}
+              disabled={!orgId}
+            />
+          )}
+        </View>
+
+        <PrimaryButton label="Completar orden" onPress={submit} loading={saving || uploading} className="mt-2" />
       </KeyboardAwareScrollView>
 
       <AppModal
