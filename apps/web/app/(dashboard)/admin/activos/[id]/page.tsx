@@ -1,158 +1,200 @@
-import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { QRDisplay } from '@/components/assets/QRDisplay'
-import { ArrowLeft, Calendar, MapPin, Tag } from 'lucide-react'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { format } from 'date-fns'
+import { notFound } from 'next/navigation'
+import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
+import {
+  Building2, CalendarDays, ChevronRight, ClipboardList, HardHat, History, MapPin, Plus,
+  Tag, TriangleAlert, Wrench, type LucideIcon,
+} from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { cn } from '@/lib/utils'
+import { ASSET_STATUS_META, assetLink, qrSvg, type AssetStatus } from '@/lib/assets'
+import { STATUS_META, OPEN_STATUSES, type WorkOrderStatus } from '@/lib/workOrders'
+import { Chip, EmptyState, InfoRow, PageHeader, PrimaryLink, Section } from '@/components/app/ui'
+import { PrintLabelsButton } from '@/components/assets/PrintLabelsButton'
 
-export default async function AssetDetailPage({ params }: { params: Promise<{ id: string }> }) {
+interface AssetDetail {
+  id: string
+  name: string
+  type: string | null
+  brand: string | null
+  model: string | null
+  serial_number: string | null
+  location: string | null
+  status: AssetStatus
+  installation_date: string | null
+  qr_code: string
+  client_id: string
+  clients: { company_name: string } | null
+}
+
+interface Visit {
+  id: string
+  date: string
+  tasks_performed: string
+  observations: string | null
+  pending_tasks: string | null
+  operators: { profiles: { full_name: string } | null } | null
+  work_orders: { id: string; order_number: string } | null
+}
+
+interface OpenOrder {
+  id: string
+  order_number: string
+  description: string
+  status: WorkOrderStatus
+}
+
+const dateLabel = (d: string) => format(parseISO(d), "d 'de' MMMM yyyy", { locale: es })
+
+/** Asset sheet, same content as the app: pending from the last visit, data, QR, open orders and history. */
+export default async function AssetDetailPage({ params }: PageProps<'/admin/activos/[id]'>) {
   const { id } = await params
   const supabase = await createClient()
 
-  const { data: asset } = await supabase
-    .from('assets')
-    .select('*, clients(company_name, nit, contact_email)')
-    .eq('id', id)
-    .single()
+  const [{ data: a }, { data: v }, { data: o }, { data: org }] = await Promise.all([
+    supabase
+      .from('assets')
+      .select('id, name, type, brand, model, serial_number, location, status, installation_date, qr_code, client_id, clients(company_name)')
+      .eq('id', id)
+      .maybeSingle(),
+    supabase
+      .from('maintenance_records')
+      .select('id, date, tasks_performed, observations, pending_tasks, operators(profiles(full_name)), work_orders(id, order_number)')
+      .eq('asset_id', id)
+      .order('date', { ascending: false })
+      .limit(20),
+    supabase
+      .from('work_orders')
+      .select('id, order_number, description, status')
+      .eq('asset_id', id)
+      .in('status', OPEN_STATUSES)
+      .order('created_at', { ascending: false }),
+    supabase.from('organizations').select('name').maybeSingle(),
+  ])
+  if (!a) notFound()
 
-  if (!asset) notFound()
-
-  const { data: records } = await supabase
-    .from('maintenance_records')
-    .select('*, operators(profiles(full_name))')
-    .eq('asset_id', id)
-    .order('date', { ascending: false })
-    .limit(10)
-
-  const statusVariant: Record<string, 'default' | 'secondary' | 'destructive'> = {
-    activo: 'default',
-    en_mantenimiento: 'secondary',
-    fuera_de_servicio: 'destructive',
-  }
+  const asset = a as unknown as AssetDetail
+  const visits = (v ?? []) as unknown as Visit[]
+  const orders = (o ?? []) as OpenOrder[]
+  const status = ASSET_STATUS_META[asset.status] ?? ASSET_STATUS_META.activo
+  const lastVisit = visits[0]
+  const brandModel = [asset.brand, asset.model].filter(Boolean).join(' ')
+  // Built from our own DB code (FX-…), rendered by the qrcode library
+  const svg = await qrSvg(assetLink(asset.qr_code))
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl">
-      <div className="flex items-center gap-3">
-        <Link href="/admin/activos">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft size={16} className="mr-1" /> Volver
-          </Button>
-        </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{asset.name}</h1>
-            <Badge variant={statusVariant[asset.status]}>
-              {asset.status.replace('_', ' ')}
-            </Badge>
+    <div className="mx-auto max-w-5xl p-4 sm:p-6 lg:p-10">
+      <PageHeader backHref="/admin/activos" title={asset.name} subtitle={asset.type}>
+        <Chip className={cn('mb-2', status.chip)}>{status.label}</Chip>
+      </PageHeader>
+
+      <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+        <div className="space-y-6">
+          {/* Pending from the last visit: the first thing a technician needs */}
+          {lastVisit?.pending_tasks && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <p className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-amber-900">
+                <TriangleAlert size={16} className="text-amber-700" /> Quedó pendiente en la última visita
+              </p>
+              <p className="text-sm whitespace-pre-line text-amber-900">{lastVisit.pending_tasks}</p>
+              <p className="mt-2 text-xs text-amber-700">{dateLabel(lastVisit.date)}</p>
+            </div>
+          )}
+
+          {/* Technical sheet */}
+          <div className="grid divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-white px-4 sm:grid-cols-2 sm:divide-y-0 sm:[&>*]:border-b sm:[&>*]:border-gray-100">
+            {asset.clients && <InfoRow icon={Building2} label="Cliente" value={asset.clients.company_name} />}
+            {asset.location && <InfoRow icon={MapPin} label="Ubicación" value={asset.location} />}
+            {brandModel && <InfoRow icon={Tag} label="Marca y modelo" value={brandModel} />}
+            {asset.serial_number && <InfoRow icon={Tag} label="N.º de serie" value={asset.serial_number} />}
+            {asset.installation_date && <InfoRow icon={CalendarDays} label="Instalado" value={dateLabel(asset.installation_date)} />}
+            <InfoRow icon={History} label="Visitas registradas" value={String(visits.length)} />
           </div>
-          <p className="text-muted-foreground">
-            {(asset.clients as { company_name: string } | null)?.company_name}
-          </p>
-        </div>
-      </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Asset Info */}
-        <div className="lg:col-span-2 space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Ficha Técnica</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2">
-              {[
-                { label: 'Tipo', value: asset.type },
-                { label: 'Marca', value: asset.brand },
-                { label: 'Modelo', value: asset.model },
-                { label: 'N° de Serie', value: asset.serial_number },
-                { label: 'Código QR', value: asset.qr_code },
-              ].map(({ label, value }) => (
-                <div key={label}>
-                  <p className="text-xs text-muted-foreground">{label}</p>
-                  <p className="text-sm font-medium">{value ?? '—'}</p>
-                </div>
-              ))}
-              {asset.location && (
-                <div className="flex items-center gap-1">
-                  <MapPin size={12} className="text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Ubicación</p>
-                    <p className="text-sm font-medium">{asset.location}</p>
-                  </div>
-                </div>
-              )}
-              {asset.installation_date && (
-                <div className="flex items-center gap-1">
-                  <Calendar size={12} className="text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Instalación</p>
-                    <p className="text-sm font-medium">
-                      {format(new Date(asset.installation_date), 'd MMM yyyy', { locale: es })}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Maintenance History */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                Historial de Mantenimiento ({records?.length ?? 0})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {records && records.length > 0 ? (
-                <div className="space-y-4">
-                  {records.map((rec) => (
-                    <div key={rec.id} className="rounded-lg border p-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium">
-                          {format(new Date(rec.date), "d 'de' MMMM yyyy, HH:mm", { locale: es })}
-                        </p>
-                        {rec.operators && (
-                          <p className="text-xs text-muted-foreground">
-                            {((rec.operators as { profiles?: { full_name?: string } }).profiles)?.full_name ?? 'Operario'}
-                          </p>
-                        )}
+          {/* Open orders */}
+          <Section title="Órdenes abiertas">
+            {orders.length === 0 ? (
+              <p className="text-sm text-gray-500">No hay órdenes abiertas para este equipo.</p>
+            ) : (
+              <div className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-100 bg-white">
+                {orders.map((order) => {
+                  const meta = STATUS_META[order.status] ?? STATUS_META.pendiente
+                  return (
+                    <Link key={order.id} href={`/admin/ordenes/${order.id}`} className="flex items-center px-4 py-3.5 transition hover:bg-gray-50">
+                      <span className={cn('mr-3 h-2.5 w-2.5 shrink-0 rounded-full', meta.dot)} />
+                      <div className="mr-2 min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-gray-900">{order.order_number}</p>
+                        <p className="truncate text-sm text-gray-600">{order.description}</p>
                       </div>
-                      <p className="text-sm">{rec.tasks_performed}</p>
-                      {rec.observations && (
-                        <p className="text-xs text-muted-foreground">{rec.observations}</p>
-                      )}
-                      {rec.pending_tasks && (
-                        <div className="rounded-md bg-yellow-50 p-2">
-                          <p className="text-xs font-medium text-yellow-800">Pendiente:</p>
-                          <p className="text-xs text-yellow-700">{rec.pending_tasks}</p>
-                        </div>
+                      <ChevronRight size={18} className="text-gray-300" />
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+            <div className="mt-3">
+              <PrimaryLink href={`/admin/ordenes/nueva?clientId=${asset.client_id}&assetId=${asset.id}`} icon={Plus}>
+                Nueva orden para este equipo
+              </PrimaryLink>
+            </div>
+          </Section>
+
+          {/* History */}
+          <Section title="Historial de mantenimiento">
+            {visits.length === 0 ? (
+              <EmptyState icon={ClipboardList} title="Sin visitas todavía" message="Cuando un técnico cierre una orden de este equipo, su reporte quedará aquí." />
+            ) : (
+              <ol className="relative space-y-3 border-l-2 border-gray-100 pl-5">
+                {visits.map((visit) => (
+                  <li key={visit.id} className="relative rounded-2xl border border-gray-100 bg-white p-4">
+                    <span aria-hidden className="absolute top-5 -left-[27px] h-3 w-3 rounded-full border-2 border-white bg-primary" />
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-sm font-semibold text-gray-900">{dateLabel(visit.date)}</p>
+                      {visit.work_orders && (
+                        <Link href={`/admin/ordenes/${visit.work_orders.id}`} className="font-mono text-xs text-gray-400 hover:text-primary">
+                          {visit.work_orders.order_number}
+                        </Link>
                       )}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Sin registros de mantenimiento.</p>
-              )}
-            </CardContent>
-          </Card>
+                    <VisitLine icon={Wrench} text={visit.tasks_performed} />
+                    {visit.observations && <VisitLine icon={ClipboardList} text={visit.observations} muted />}
+                    {visit.pending_tasks && <VisitLine icon={TriangleAlert} text={visit.pending_tasks} warn />}
+                    {visit.operators?.profiles?.full_name && (
+                      <p className="mt-2 flex items-center gap-1.5 text-xs text-gray-500">
+                        <HardHat size={13} className="text-gray-400" /> {visit.operators.profiles.full_name}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </Section>
         </div>
 
-        {/* QR Code Panel */}
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Código QR</CardTitle>
-            </CardHeader>
-            <CardContent className="flex justify-center">
-              <QRDisplay assetId={asset.id} assetName={asset.name} />
-            </CardContent>
-          </Card>
-        </div>
+        {/* QR */}
+        <aside className="lg:sticky lg:top-10 lg:self-start">
+          <div className="flex flex-col items-center rounded-2xl border border-gray-100 bg-white p-6">
+            <div className="h-44 w-44 [&_svg]:h-full [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />
+            <p className="mt-4 font-mono text-lg font-bold tracking-widest text-gray-900">{asset.qr_code}</p>
+            <p className="mt-1 text-center text-xs text-gray-500">Pega la etiqueta en el equipo. Al escanearla se abre esta ficha.</p>
+            <PrintLabelsButton
+              className="mt-4"
+              orgName={org?.name ?? ''}
+              assets={[{ name: asset.name, qr_code: asset.qr_code, location: asset.location, clientName: asset.clients?.company_name }]}
+            />
+          </div>
+        </aside>
       </div>
     </div>
+  )
+}
+
+function VisitLine({ icon: Icon, text, muted = false, warn = false }: { icon: LucideIcon; text: string; muted?: boolean; warn?: boolean }) {
+  return (
+    <p className={cn('mt-1 flex gap-2 text-sm', warn ? 'text-amber-800' : muted ? 'text-gray-500' : 'text-gray-700')}>
+      <Icon size={14} className={cn('mt-0.5 shrink-0', warn ? 'text-amber-600' : 'text-gray-400')} />
+      <span className="whitespace-pre-line">{text}</span>
+    </p>
   )
 }

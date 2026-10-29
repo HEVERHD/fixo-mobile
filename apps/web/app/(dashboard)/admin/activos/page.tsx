@@ -1,101 +1,79 @@
+import { Building2, MapPin, Package, Plus, QrCode } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, QrCode, Eye } from 'lucide-react'
-import Link from 'next/link'
+import { ASSET_STATUS_META, type AssetStatus } from '@/lib/assets'
+import { CardLink, Chip, EmptyState, MetaRow, PageHeader, PrimaryLink } from '@/components/app/ui'
+import { PrintLabelsButton } from '@/components/assets/PrintLabelsButton'
+
+interface AssetRow {
+  id: string
+  name: string
+  type: string | null
+  brand: string | null
+  model: string | null
+  status: AssetStatus
+  location: string | null
+  qr_code: string
+  clients: { company_name: string } | null
+}
 
 export default async function ActivosPage() {
   const supabase = await createClient()
 
-  const { data: assets } = await supabase
-    .from('assets')
-    .select('*, clients(company_name)')
-    .order('created_at', { ascending: false })
-
-  const statusVariant: Record<string, 'default' | 'secondary' | 'destructive'> = {
-    activo: 'default',
-    en_mantenimiento: 'secondary',
-    fuera_de_servicio: 'destructive',
-  }
+  const [{ data }, { data: org }] = await Promise.all([
+    supabase
+      .from('assets')
+      .select('id, name, type, brand, model, status, location, qr_code, clients(company_name)')
+      .order('created_at', { ascending: false }),
+    supabase.from('organizations').select('name').maybeSingle(),
+  ])
+  const assets = (data ?? []) as unknown as AssetRow[]
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Activos / Equipos</h1>
-          <p className="text-muted-foreground">Gestión de equipos e identificación por QR</p>
-        </div>
-        <Link href="/admin/activos/nuevo">
-          <Button>
-            <Plus size={16} className="mr-2" /> Nuevo Activo
-          </Button>
-        </Link>
-      </div>
+    <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-10">
+      <PageHeader
+        title="Equipos"
+        subtitle={assets.length === 1 ? '1 equipo registrado' : `${assets.length} equipos registrados`}
+        actions={
+          <>
+            {assets.length > 0 && (
+              <PrintLabelsButton
+                label="Imprimir todas"
+                orgName={org?.name ?? ''}
+                assets={assets.map((a) => ({ name: a.name, qr_code: a.qr_code, location: a.location, clientName: a.clients?.company_name }))}
+              />
+            )}
+            <PrimaryLink href="/admin/activos/nuevo" icon={Plus}>Nuevo equipo</PrimaryLink>
+          </>
+        }
+      />
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">
-            {assets?.length ?? 0} activos registrados
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Ubicación</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {assets && assets.length > 0 ? (
-                assets.map((asset) => (
-                  <TableRow key={asset.id}>
-                    <TableCell className="font-medium">{asset.name}</TableCell>
-                    <TableCell>{asset.type}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {(asset.clients as { company_name: string } | null)?.company_name ?? '—'}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{asset.location ?? '—'}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant[asset.status]}>
-                        {asset.status.replace('_', ' ')}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Link href={`/qr/${asset.id}`} target="_blank">
-                          <Button size="sm" variant="outline">
-                            <QrCode size={14} className="mr-1" /> QR
-                          </Button>
-                        </Link>
-                        <Link href={`/admin/activos/${asset.id}`}>
-                          <Button size="sm" variant="outline">
-                            <Eye size={14} className="mr-1" /> Ver
-                          </Button>
-                        </Link>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                    No hay activos registrados. Crea el primero.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {assets.length === 0 ? (
+        <EmptyState
+          icon={Package}
+          title="No hay equipos registrados"
+          message="Los equipos que registres aparecerán aquí con su código QR."
+          action={<PrimaryLink href="/admin/activos/nuevo" icon={Plus}>Registrar equipo</PrimaryLink>}
+        />
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {assets.map((asset) => {
+            const status = ASSET_STATUS_META[asset.status] ?? ASSET_STATUS_META.activo
+            const detail = [asset.type, [asset.brand, asset.model].filter(Boolean).join(' ')].filter(Boolean).join(' · ')
+            return (
+              <CardLink key={asset.id} href={`/admin/activos/${asset.id}`}>
+                <div className="mb-1 flex items-start justify-between gap-2">
+                  <p className="font-semibold text-gray-900">{asset.name}</p>
+                  <Chip className={status.chip}>{status.label}</Chip>
+                </div>
+                {detail && <p className="text-sm text-gray-500">{detail}</p>}
+                {asset.clients && <MetaRow icon={Building2}>{asset.clients.company_name}</MetaRow>}
+                {asset.location && <MetaRow icon={MapPin}>{asset.location}</MetaRow>}
+                <MetaRow icon={QrCode} className="font-mono">{asset.qr_code}</MetaRow>
+              </CardLink>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

@@ -1,118 +1,119 @@
-import { createClient } from '@/lib/supabase/server'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
-import { Plus, Eye } from 'lucide-react'
 import Link from 'next/link'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { Building2, CalendarDays, ClipboardList, HardHat, Package, Plus, Zap } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { cn } from '@/lib/utils'
+import {
+  STATUS_META, PRIORITY_LABEL, PRIORITY_CHIP, isStatus,
+  type WorkOrderStatus, type WorkOrderPriority,
+} from '@/lib/workOrders'
+import { CardLink, Chip, EmptyState, MetaRow, PageHeader, PrimaryLink } from '@/components/app/ui'
 
-export default async function OrdenesPage() {
+interface OrderRow {
+  id: string
+  order_number: string
+  description: string
+  status: WorkOrderStatus
+  priority: WorkOrderPriority
+  scheduled_date: string | null
+  clients: { company_name: string } | null
+  assets: { name: string } | null
+  operators: { profiles: { full_name: string } | null } | null
+}
+
+const FILTERS: { key: WorkOrderStatus | 'todas'; label: string }[] = [
+  { key: 'todas', label: 'Todas' },
+  { key: 'pendiente', label: 'Pendientes' },
+  { key: 'en_proceso', label: 'En proceso' },
+  { key: 'completada', label: 'Completadas' },
+  { key: 'cancelada', label: 'Canceladas' },
+]
+
+export default async function OrdenesPage({ searchParams }: PageProps<'/admin/ordenes'>) {
+  const { estado } = await searchParams
+  const filter = isStatus(estado) ? estado : null
+
   const supabase = await createClient()
-
-  const { data: orders } = await supabase
+  let query = supabase
     .from('work_orders')
-    .select('*, clients(company_name), operators(profiles(full_name)), assets(name)')
+    .select('id, order_number, description, status, priority, scheduled_date, clients(company_name), assets(name), operators(profiles(full_name))')
     .order('created_at', { ascending: false })
-
-  const statusVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-    pendiente: 'outline',
-    en_proceso: 'default',
-    completada: 'secondary',
-    cancelada: 'destructive',
-  }
-
-  const priorityColor: Record<string, string> = {
-    baja: 'bg-gray-100 text-gray-600',
-    media: 'bg-blue-100 text-blue-700',
-    alta: 'bg-orange-100 text-orange-700',
-    urgente: 'bg-red-100 text-red-700',
-  }
+    .limit(100)
+  if (filter) query = query.eq('status', filter)
+  const { data } = await query
+  const orders = (data ?? []) as unknown as OrderRow[]
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Órdenes de Trabajo</h1>
-          <p className="text-muted-foreground">Gestión y seguimiento de servicios</p>
-        </div>
-        <Link href="/admin/ordenes/nueva">
-          <Button>
-            <Plus size={16} className="mr-2" /> Nueva Orden
-          </Button>
-        </Link>
-      </div>
+    <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-10">
+      <PageHeader
+        title="Órdenes de trabajo"
+        subtitle={orders.length === 1 ? '1 orden' : `${orders.length} órdenes`}
+        actions={<PrimaryLink href="/admin/ordenes/nueva" icon={Plus}>Nueva orden</PrimaryLink>}
+      />
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">{orders?.length ?? 0} órdenes</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Número</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Descripción</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Prioridad</TableHead>
-                <TableHead>Operario</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders && orders.length > 0 ? (
-                orders.map((o) => (
-                  <TableRow key={o.id}>
-                    <TableCell className="font-mono text-sm">{o.order_number}</TableCell>
-                    <TableCell>{(o.clients as { company_name: string } | null)?.company_name ?? '—'}</TableCell>
-                    <TableCell className="max-w-[180px]">
-                      <p className="truncate text-sm">{o.description}</p>
-                    </TableCell>
-                    <TableCell className="capitalize">{o.type}</TableCell>
-                    <TableCell>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${priorityColor[o.priority]}`}>
-                        {o.priority}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {(o.operators as { profiles?: { full_name?: string } } | null)?.profiles?.full_name ?? 'Sin asignar'}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {o.scheduled_date
-                        ? format(new Date(o.scheduled_date), 'd MMM', { locale: es })
-                        : '—'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant[o.status]}>
-                        {o.status.replace('_', ' ')}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Link href={`/admin/ordenes/${o.id}`}>
-                        <Button size="sm" variant="outline">
-                          <Eye size={14} className="mr-1" /> Ver
-                        </Button>
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
-                    No hay órdenes. Crea la primera.
-                  </TableCell>
-                </TableRow>
+      {/* Status filter */}
+      <nav className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0" aria-label="Filtrar por estado">
+        {FILTERS.map(({ key, label }) => {
+          const active = (filter ?? 'todas') === key
+          return (
+            <Link
+              key={key}
+              href={key === 'todas' ? '/admin/ordenes' : `/admin/ordenes?estado=${key}`}
+              aria-current={active ? 'page' : undefined}
+              className={cn(
+                'shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition',
+                active ? 'border-navy bg-navy text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
               )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            >
+              {label}
+            </Link>
+          )
+        })}
+      </nav>
+
+      {orders.length === 0 ? (
+        <EmptyState
+          icon={ClipboardList}
+          title={filter ? `No hay órdenes en estado «${STATUS_META[filter].label}»` : 'No hay órdenes registradas'}
+          message={filter ? undefined : 'Crea tu primera orden para asignar un trabajo a tu equipo.'}
+          action={!filter && <PrimaryLink href="/admin/ordenes/nueva" icon={Plus}>Crear orden</PrimaryLink>}
+        />
+      ) : (
+        <div className="grid gap-3 lg:grid-cols-2">
+          {orders.map((order) => {
+            const status = STATUS_META[order.status] ?? STATUS_META.pendiente
+            return (
+              <CardLink key={order.id} href={`/admin/ordenes/${order.id}`}>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="flex items-center gap-2 font-semibold text-gray-900">
+                    <span className={cn('h-2.5 w-2.5 rounded-full', status.dot)} />
+                    {order.order_number}
+                  </p>
+                  <div className="flex gap-1.5">
+                    <Chip className={PRIORITY_CHIP[order.priority] ?? PRIORITY_CHIP.media}>
+                      {order.priority === 'urgente' && <Zap size={11} className="fill-current" />}
+                      {PRIORITY_LABEL[order.priority]}
+                    </Chip>
+                    <Chip className={cn(status.chip, status.text)}>{status.label}</Chip>
+                  </div>
+                </div>
+                <p className="mb-1 line-clamp-2 text-sm text-gray-700">{order.description}</p>
+                <div className="grid gap-x-4 sm:grid-cols-2">
+                  {order.clients && <MetaRow icon={Building2}>{order.clients.company_name}</MetaRow>}
+                  {order.assets && <MetaRow icon={Package}>{order.assets.name}</MetaRow>}
+                  {order.scheduled_date && (
+                    <MetaRow icon={CalendarDays}>
+                      {format(parseISO(order.scheduled_date), "EEEE d 'de' MMMM", { locale: es })}
+                    </MetaRow>
+                  )}
+                  <MetaRow icon={HardHat}>{order.operators?.profiles?.full_name ?? 'Sin asignar'}</MetaRow>
+                </div>
+              </CardLink>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
