@@ -31,7 +31,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Fixo usa la cámara para leer el código QR de los equipos.",
+          "cameraPermission": "Fixo usa la cámara para leer el código QR de los equipos y tomar fotos de evidencia del trabajo.",
           "recordAudioAndroid": false
         }
       ],
