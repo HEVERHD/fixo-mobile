@@ -1,14 +1,17 @@
 import { z } from 'zod'
 
+const optionalId = z.uuid().nullable()
+
 export const workOrderSchema = z.object({
-  client_id: z.string().uuid('Selecciona un cliente'),
-  asset_id: z.string().uuid().optional().or(z.literal('')),
-  assigned_operator_id: z.string().uuid().optional().or(z.literal('')),
+  client_id: z.uuid('Elige el cliente'),
+  project_id: optionalId,
+  asset_id: optionalId,
+  assigned_operator_id: optionalId,
   type: z.enum(['preventivo', 'correctivo', 'instalacion']),
   priority: z.enum(['baja', 'media', 'alta', 'urgente']),
-  scheduled_date: z.string().optional(),
-  description: z.string().min(5, 'Descripción requerida (mín. 5 caracteres)'),
-  notes: z.string().optional(),
+  // yyyy-MM-dd computed in the browser (the admin's timezone), or null for "Sin fecha"
+  scheduled_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida').nullable(),
+  description: z.string().trim().min(5, 'Describe el trabajo (mínimo 5 caracteres)').max(2000),
 })
 
 export const maintenanceRecordSchema = z.object({

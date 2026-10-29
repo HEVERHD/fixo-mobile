@@ -2,21 +2,12 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
+import { adminClient } from '@/lib/auth'
 
 type Result = { error?: string }
 
 const orderId = z.uuid()
 const operatorId = z.uuid().nullable()
-
-/** Signed-in admin, or null. RLS enforces the organization; this only rejects other roles early. */
-async function adminClient() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  return profile?.role === 'admin' ? supabase : null
-}
 
 export async function assignOperator(id: string, operator: string | null): Promise<Result> {
   const parsed = z.object({ id: orderId, operator: operatorId }).safeParse({ id, operator })
