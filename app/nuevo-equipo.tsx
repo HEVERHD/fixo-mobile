@@ -10,7 +10,7 @@ import { TextField } from '@/components/TextField'
 import { SelectField, type SelectOption } from '@/components/SelectField'
 import { ChipGroup } from '@/components/ChipGroup'
 import { PrimaryButton } from '@/components/AuthLayout'
-import { FeedbackModal } from '@/components/FeedbackModal'
+import { AppModal } from '@/components/AppModal'
 
 const ASSET_TYPES = ['Climatización', 'Eléctrico', 'Hidráulico', 'Generación eléctrica', 'Refrigeración', 'Otro'] as const
 type AssetType = typeof ASSET_TYPES[number]
@@ -141,7 +141,7 @@ export default function NuevoEquipo() {
         <PrimaryButton label="Crear equipo" onPress={save} loading={saving} className="mt-2" />
       </KeyboardAwareScrollView>
 
-      <FeedbackModal
+      <AppModal
         visible={created !== null}
         variant="success"
         icon={QrCode}
@@ -156,7 +156,7 @@ export default function NuevoEquipo() {
         <Text className="text-sm text-gray-500 text-center mt-2">
           Pronto podrás imprimir su QR para pegarlo en el equipo.
         </Text>
-      </FeedbackModal>
+      </AppModal>
     </View>
   )
 }

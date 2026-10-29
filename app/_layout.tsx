@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar'
 import { KeyboardProvider } from 'react-native-keyboard-controller'
 import { supabase, type Role } from '@/lib/supabase'
 import { AuthLinkHandler } from '@/components/AuthLinkHandler'
+import { ModalProvider } from '@/components/AppModal'
 import type { Session } from '@supabase/supabase-js'
 
 export default function RootLayout() {
@@ -17,18 +18,29 @@ export default function RootLayout() {
   const onNoAccess = segments[0] === 'sin-acceso'
 
   useEffect(() => {
+    // Several auth events can fire together on sign-in; only the latest lookup may set the role
+    let latestLookup = 0
+
+    async function readRole(userId: string) {
+      const { data } = await supabase.from('profiles').select('role, organization_id').eq('id', userId).single()
+      // A role only counts once the user belongs to an organization
+      return { profile: data, role: data?.organization_id ? ((data.role as Role) ?? null) : null }
+    }
+
     async function fetchRole(userId: string) {
-      const [{ data }, { data: isSuper }] = await Promise.all([
-        supabase.from('profiles').select('role, organization_id').eq('id', userId).single(),
+      const lookup = ++latestLookup
+      const [{ profile, role: current }, { data: isSuper }] = await Promise.all([
+        readRole(userId),
         supabase.rpc('is_super_admin'),
       ])
-      let nextRole = data?.organization_id ? ((data.role as Role) ?? null) : null
-      // No company yet: accept a pending invitation for this (confirmed) email, if any
-      if (data && !data.organization_id) {
+      let nextRole = current
+      // No company yet: accept a pending invitation for this (confirmed) email, if any.
+      // If a parallel lookup claimed it first, the claim returns null, so read the profile again.
+      if (profile && !profile.organization_id) {
         const { data: claimed } = await supabase.rpc('claim_my_invitation')
-        if (claimed) nextRole = claimed as Role
+        nextRole = (claimed as Role | null) ?? (await readRole(userId)).role
       }
-      // A role only counts once the user belongs to an organization
+      if (lookup !== latestLookup) return
       setRole(nextRole)
       setSuperAdmin(isSuper === true)
       setLoading(false)
@@ -75,16 +87,20 @@ export default function RootLayout() {
 
   return (
     <KeyboardProvider>
-      <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="nueva-orden" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="nueva-obra" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="nuevo-cliente" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="nuevo-equipo" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="invitar" options={{ presentation: 'modal' }} />
-      </Stack>
-      {/* Email-confirmation deep links: auto sign-in + welcome modal */}
-      <AuthLinkHandler />
+      {/* useModal(): branded alerts and confirmations anywhere in the app */}
+      <ModalProvider>
+        <StatusBar style="auto" />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="nueva-orden" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="nueva-obra" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="nuevo-cliente" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="nuevo-equipo" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="invitar" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="escanear" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+        </Stack>
+        {/* Email-confirmation deep links: auto sign-in + welcome modal */}
+        <AuthLinkHandler />
+      </ModalProvider>
     </KeyboardProvider>
   )
 }

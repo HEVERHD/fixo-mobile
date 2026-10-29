@@ -2,9 +2,9 @@ import { useCallback, useState } from 'react'
 import { View, Text, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native'
 import { colors } from '@/lib/theme'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useFocusEffect } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { supabase } from '@/lib/supabase'
-import { CircleCheckBig, Building2, CalendarDays, Play } from 'lucide-react-native'
+import { CircleCheckBig, Building2, CalendarDays, Play, ScanQrCode } from 'lucide-react-native'
 import { EmptyState, MetaRow } from '@/components/ui'
 
 const STATUS_COLOR: Record<string, string> = {
@@ -66,7 +66,18 @@ export default function OperarioOrders() {
         contentContainerClassName="p-4"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} />}
       >
-        <Text className="text-2xl font-bold text-gray-900 mb-4">Mis Órdenes</Text>
+        <View className="flex-row items-center justify-between mb-4">
+          <Text className="text-2xl font-bold text-gray-900">Mis Órdenes</Text>
+          <TouchableOpacity
+            onPress={() => router.push('/escanear')}
+            className="flex-row items-center h-11 px-4 rounded-xl bg-primary"
+            accessibilityRole="button"
+            accessibilityLabel="Escanear QR de un equipo"
+          >
+            <ScanQrCode size={18} color="#fff" />
+            <Text className="text-white font-semibold ml-2">Escanear</Text>
+          </TouchableOpacity>
+        </View>
 
         {orders.length === 0 ? (
           <EmptyState

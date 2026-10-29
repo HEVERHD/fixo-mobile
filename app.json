@@ -29,6 +29,13 @@
       "expo-router",
       "expo-secure-store",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Fixo usa la cámara para leer el código QR de los equipos.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "Fixo necesita acceso a tus fotos para subir evidencias de mantenimiento."

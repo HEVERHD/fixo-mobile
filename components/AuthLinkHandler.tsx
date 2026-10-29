@@ -5,7 +5,7 @@ import { router } from 'expo-router'
 import { PartyPopper, Clock } from 'lucide-react-native'
 import { supabase } from '@/lib/supabase'
 import { consumeAuthLink } from '@/lib/authLinks'
-import { FeedbackModal } from '@/components/FeedbackModal'
+import { AppModal } from '@/components/AppModal'
 
 type Notice =
   | { kind: 'verified'; name: string | null; organization: string | null }
@@ -46,7 +46,7 @@ export function AuthLinkHandler() {
 
   if (notice?.kind === 'verified') {
     return (
-      <FeedbackModal
+      <AppModal
         visible
         variant="success"
         icon={PartyPopper}
@@ -63,13 +63,13 @@ export function AuthLinkHandler() {
             órdenes, equipos y clientes.
           </Text>
         )}
-      </FeedbackModal>
+      </AppModal>
     )
   }
 
   if (notice?.kind === 'link-error') {
     return (
-      <FeedbackModal
+      <AppModal
         visible
         variant="warning"
         icon={Clock}
@@ -82,7 +82,7 @@ export function AuthLinkHandler() {
             ? 'Este enlace venció o ya fue usado. Si ya confirmaste tu correo, simplemente inicia sesión.'
             : 'Intenta iniciar sesión. Si el problema continúa, regístrate de nuevo para recibir otro enlace.'}
         </Text>
-      </FeedbackModal>
+      </AppModal>
     )
   }
 

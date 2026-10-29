@@ -8,7 +8,7 @@ import { X, Wrench, FileText, TriangleAlert, CircleCheckBig } from 'lucide-react
 import { supabase } from '@/lib/supabase'
 import { TextField } from '@/components/TextField'
 import { PrimaryButton } from '@/components/AuthLayout'
-import { FeedbackModal } from '@/components/FeedbackModal'
+import { AppModal } from '@/components/AppModal'
 
 /**
  * Operator closes a work order: writes the report (maintenance_records) and
@@ -127,7 +127,7 @@ export default function CompletarOrden() {
         <PrimaryButton label="Completar orden" onPress={submit} loading={saving} className="mt-2" />
       </KeyboardAwareScrollView>
 
-      <FeedbackModal
+      <AppModal
         visible={done}
         variant="success"
         icon={CircleCheckBig}
@@ -139,7 +139,7 @@ export default function CompletarOrden() {
           El reporte de <Text className="font-semibold text-gray-900">{orderNumber}</Text> quedó guardado.
           El administrador y el cliente ya pueden verlo.
         </Text>
-      </FeedbackModal>
+      </AppModal>
     </View>
   )
 }

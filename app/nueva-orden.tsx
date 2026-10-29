@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Alert } from 'react-native'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { addDays, format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { X, Building2, Package, HardHat, FileText, ClipboardCheck } from 'lucide-react-native'
@@ -14,7 +14,7 @@ import { TextField } from '@/components/TextField'
 import { SelectField, type SelectOption } from '@/components/SelectField'
 import { ChipGroup } from '@/components/ChipGroup'
 import { PrimaryButton } from '@/components/AuthLayout'
-import { FeedbackModal } from '@/components/FeedbackModal'
+import { AppModal } from '@/components/AppModal'
 
 type DateChoice = 'hoy' | 'manana' | '3dias' | 'semana' | 'ninguna'
 
@@ -41,9 +41,11 @@ export default function NuevaOrden() {
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [features, setFeatures] = useState(featuresFor(null))
 
-  const [clientId, setClientId] = useState<string | null>(null)
+  // Optional prefill, e.g. "Nueva orden" from an asset's detail screen
+  const params = useLocalSearchParams<{ clientId?: string; assetId?: string }>()
+  const [clientId, setClientId] = useState<string | null>(params.clientId ?? null)
   const [projectId, setProjectId] = useState<string | null>(null)
-  const [assetId, setAssetId] = useState<string | null>(null)
+  const [assetId, setAssetId] = useState<string | null>(params.assetId ?? null)
   const [operatorId, setOperatorId] = useState<string | null>(null)
   const [type, setType] = useState<WorkOrderType>('correctivo')
   const [priority, setPriority] = useState<WorkOrderPriority>('media')
@@ -239,7 +241,7 @@ export default function NuevaOrden() {
         <PrimaryButton label="Crear orden" onPress={save} loading={saving} className="mt-2" />
       </KeyboardAwareScrollView>
 
-      <FeedbackModal
+      <AppModal
         visible={created !== null}
         variant="success"
         icon={ClipboardCheck}
@@ -251,7 +253,7 @@ export default function NuevaOrden() {
           La orden <Text className="font-semibold text-gray-900">{created}</Text> quedó registrada
           {operatorId ? ' y asignada.' : '. Puedes asignarla a un operario más adelante.'}
         </Text>
-      </FeedbackModal>
+      </AppModal>
     </View>
   )
 }

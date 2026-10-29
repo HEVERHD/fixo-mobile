@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react'
-import { View, Text, ScrollView, ActivityIndicator, RefreshControl } from 'react-native'
+import { View, Text, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native'
 import { colors } from '@/lib/theme'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useFocusEffect } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { supabase } from '@/lib/supabase'
 import { Package, MapPin, CalendarCheck } from 'lucide-react-native'
 import { EmptyState, MetaRow } from '@/components/ui'
@@ -70,7 +70,13 @@ export default function ClienteActivos() {
           assets.map((asset) => {
             const s = STATUS[asset.status] ?? { bg: 'bg-gray-100', text: 'text-gray-700', label: asset.status }
             return (
-              <View key={asset.id} className="bg-white rounded-2xl p-4 mb-3 shadow-sm">
+              <TouchableOpacity
+                key={asset.id}
+                onPress={() => router.push({ pathname: '/activo/[id]', params: { id: asset.id } })}
+                activeOpacity={0.7}
+                className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
+                accessibilityRole="button"
+              >
                 <View className="flex-row justify-between items-start mb-1">
                   <Text className="font-semibold text-gray-900 flex-1 mr-2">{asset.name}</Text>
                   <View className={`rounded-full px-2 py-0.5 ${s.bg}`}>
@@ -84,7 +90,7 @@ export default function ClienteActivos() {
                 {asset.installation_date && (
                   <MetaRow icon={CalendarCheck}>Instalado: {asset.installation_date}</MetaRow>
                 )}
-              </View>
+              </TouchableOpacity>
             )
           })
         )}

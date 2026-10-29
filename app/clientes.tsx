@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl, Alert } from 'react-native'
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { router, useFocusEffect } from 'expo-router'
@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { fetchMyOrganization } from '@/lib/organization'
 import { INVITATION_FIELDS, cancelInvitation, shareInvitation, type Invitation } from '@/lib/invitations'
 import { EmptyState, MetaRow } from '@/components/ui'
+import { useModal } from '@/components/AppModal'
 
 interface ClientRow {
   id: string
@@ -24,6 +25,7 @@ export default function Clientes() {
   const [invites, setInvites] = useState<Invitation[]>([])
   const [orgName, setOrgName] = useState('')
   const [refreshing, setRefreshing] = useState(false)
+  const modal = useModal()
 
   const load = useCallback(async () => {
     const [{ data: c }, { data: i }, org] = await Promise.all([
@@ -43,14 +45,15 @@ export default function Clientes() {
   const invite = (c: ClientRow) =>
     router.push({ pathname: '/invitar', params: { role: 'cliente', clientId: c.id, ...(c.contact_email ? { email: c.contact_email } : {}) } })
 
-  function confirmCancel(inv: Invitation) {
-    Alert.alert('Cancelar invitación', `${inv.email} ya no podrá entrar con esta invitación.`, [
-      { text: 'Volver', style: 'cancel' },
-      {
-        text: 'Cancelar invitación', style: 'destructive',
-        onPress: async () => { if (await cancelInvitation(inv.id)) load() },
-      },
-    ])
+  async function confirmCancel(inv: Invitation) {
+    const ok = await modal.confirm({
+      title: 'Cancelar invitación',
+      message: `${inv.email} ya no podrá entrar con esta invitación.`,
+      actionLabel: 'Cancelar invitación',
+      cancelLabel: 'Volver',
+      destructive: true,
+    })
+    if (ok && await cancelInvitation(inv.id)) load()
   }
 
   return (

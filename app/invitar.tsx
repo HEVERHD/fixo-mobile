@@ -12,7 +12,7 @@ import { TextField } from '@/components/TextField'
 import { SelectField, type SelectOption } from '@/components/SelectField'
 import { ChipGroup } from '@/components/ChipGroup'
 import { PrimaryButton } from '@/components/AuthLayout'
-import { FeedbackModal } from '@/components/FeedbackModal'
+import { AppModal } from '@/components/AppModal'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -142,7 +142,7 @@ export default function Invitar() {
         <PrimaryButton label="Crear invitación" onPress={save} loading={saving} className="mt-2" />
       </KeyboardAwareScrollView>
 
-      <FeedbackModal
+      <AppModal
         visible={sent}
         variant="success"
         icon={Send}
@@ -156,7 +156,7 @@ export default function Invitar() {
           Envíale el enlace a <Text className="font-semibold text-gray-900">{normalizeEmail(email)}</Text> para que
           cree su cuenta.
         </Text>
-      </FeedbackModal>
+      </AppModal>
     </View>
   )
 }

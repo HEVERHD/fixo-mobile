@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import Constants from 'expo-constants'
 import { ArrowRight, ChevronLeft } from 'lucide-react-native'
+import { Animation } from '@/components/Animation'
 
 /**
  * Shared shell for auth screens: navy brand header + white bottom sheet,
@@ -59,12 +60,22 @@ export function AuthLayout({
           className={`flex-1 items-center justify-end px-6 ${compact ? 'pb-6' : 'pb-10'}`}
           style={{ paddingTop: insets.top + (compact ? 56 : 32) }}
         >
-          <Image
-            source={require('@/assets/splash-icon.png')}
-            className={compact ? 'w-12 h-12 mb-3' : 'w-20 h-20 mb-5'}
-            resizeMode="contain"
-            accessibilityIgnoresInvertColors
-          />
+          {(() => {
+            const logo = (
+              <Image
+                source={require('@/assets/splash-icon.png')}
+                className={compact ? 'w-12 h-12 mb-3' : 'w-20 h-20 mb-5'}
+                resizeMode="contain"
+                accessibilityIgnoresInvertColors
+              />
+            )
+            // The full header (login) gets the brand animation; long forms keep the small logo
+            return compact ? logo : (
+              <View className="mb-2">
+                <Animation name="login" size={180} fallback={logo} />
+              </View>
+            )
+          })()}
           <Text className={`${compact ? 'text-2xl' : 'text-4xl'} font-extrabold tracking-tight text-white`}>
             Fixo
           </Text>

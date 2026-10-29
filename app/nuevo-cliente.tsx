@@ -8,7 +8,7 @@ import { X, Building2, FileText, MapPin, Mail, Phone, CircleCheckBig } from 'luc
 import { supabase } from '@/lib/supabase'
 import { TextField } from '@/components/TextField'
 import { PrimaryButton } from '@/components/AuthLayout'
-import { FeedbackModal } from '@/components/FeedbackModal'
+import { AppModal } from '@/components/AppModal'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -128,7 +128,7 @@ export default function NuevoCliente() {
         <PrimaryButton label="Crear cliente" onPress={save} loading={saving} className="mt-2" />
       </KeyboardAwareScrollView>
 
-      <FeedbackModal
+      <AppModal
         visible={created !== null}
         variant="success"
         icon={CircleCheckBig}
@@ -142,7 +142,7 @@ export default function NuevoCliente() {
           <Text className="font-semibold text-gray-900">{created?.name}</Text> quedó registrado. Si lo invitas al
           portal podrá ver sus equipos, órdenes y reportes desde la app.
         </Text>
-      </FeedbackModal>
+      </AppModal>
     </View>
   )
 }

@@ -1,15 +1,23 @@
 import type { ReactNode } from 'react'
-import { View, Text, TouchableOpacity, Alert } from 'react-native'
+import { View, Text, TouchableOpacity } from 'react-native'
 import { LogOut, ChevronRight, type LucideIcon } from 'lucide-react-native'
 import { supabase } from '@/lib/supabase'
+import { Animation } from '@/components/Animation'
+import { useModal } from '@/components/AppModal'
 
 /** Placeholder card for lists with no items. */
 export function EmptyState({ icon: Icon, title, message }: { icon: LucideIcon; title: string; message?: string }) {
   return (
     <View className="bg-white rounded-2xl p-6 items-center border border-gray-100">
-      <View className="w-14 h-14 rounded-full bg-gray-100 items-center justify-center mb-3">
-        <Icon size={26} color="#9ca3af" strokeWidth={1.8} />
-      </View>
+      <Animation
+        name="empty"
+        size={120}
+        fallback={
+          <View className="w-14 h-14 rounded-full bg-gray-100 items-center justify-center mb-3">
+            <Icon size={26} color="#9ca3af" strokeWidth={1.8} />
+          </View>
+        }
+      />
       <Text className="font-semibold text-gray-900">{title}</Text>
       {message && <Text className="text-sm text-gray-500 text-center mt-1">{message}</Text>}
     </View>
@@ -18,11 +26,17 @@ export function EmptyState({ icon: Icon, title, message }: { icon: LucideIcon; t
 
 /** Confirms, then signs out. The root layout redirects to login on session loss. */
 export function SignOutButton() {
-  function handleSignOut() {
-    Alert.alert('Cerrar sesión', '¿Deseas salir de Fixo?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Salir', style: 'destructive', onPress: async () => { await supabase.auth.signOut() } },
-    ])
+  const modal = useModal()
+
+  async function handleSignOut() {
+    const ok = await modal.confirm({
+      title: 'Cerrar sesión',
+      message: '¿Deseas salir de Fixo?',
+      icon: LogOut,
+      actionLabel: 'Salir',
+      destructive: true,
+    })
+    if (ok) await supabase.auth.signOut()
   }
 
   return (

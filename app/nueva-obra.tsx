@@ -13,7 +13,7 @@ import { TextField } from '@/components/TextField'
 import { SelectField, type SelectOption } from '@/components/SelectField'
 import { ChipGroup } from '@/components/ChipGroup'
 import { PrimaryButton } from '@/components/AuthLayout'
-import { FeedbackModal } from '@/components/FeedbackModal'
+import { AppModal } from '@/components/AppModal'
 
 type StartChoice = 'hoy' | 'lunes' | 'mes' | 'ninguna'
 
@@ -153,7 +153,7 @@ export default function NuevaObra() {
         <PrimaryButton label="Crear obra" onPress={save} loading={saving} className="mt-2" />
       </KeyboardAwareScrollView>
 
-      <FeedbackModal
+      <AppModal
         visible={created !== null}
         variant="success"
         icon={CircleCheckBig}
@@ -165,7 +165,7 @@ export default function NuevaObra() {
           <Text className="font-semibold text-gray-900">{created}</Text> quedó registrada. Ya puedes crear
           órdenes de trabajo dentro de esta obra.
         </Text>
-      </FeedbackModal>
+      </AppModal>
     </View>
   )
 }
